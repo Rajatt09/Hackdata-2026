@@ -1,7 +1,19 @@
 const { openApplication } = require('./applications');
 const { listFiles, sendFile, zipFolder, findFilesByName } = require('./getfiles');
 const { executeScript } = require('./runscripts');
-const { getSystemStats } = require('./sysinfo');
+const { 
+    runSysTerminalCommands,
+    getSystemInfo,
+    getBatteryStatus,
+    getCPUUsage,
+    getMemoryUsage,
+    getNetworkInfo,
+    getPublicIP,
+    getRunningProcesses,
+    getDiskUsage,
+    getTemperature,
+    getActiveUsers
+} = require('./sysinfo');
 
 const toolsMapping = {
     openApplication,
@@ -10,7 +22,17 @@ const toolsMapping = {
     zipFolder,
     findFilesByName,
     executeScript,
-    getSystemStats
+    runSysTerminalCommands,
+    getSystemInfo,
+    getBatteryStatus,
+    getCPUUsage,
+    getMemoryUsage,
+    getNetworkInfo,
+    getPublicIP,
+    getRunningProcesses,
+    getDiskUsage,
+    getTemperature,
+    getActiveUsers
 };
 
 const toolSchemas = [
@@ -40,14 +62,6 @@ const toolSchemas = [
                 }
             },
             required: ["command"]
-        }
-    },
-    {
-        name: "getSystemStats",
-        description: "Gets standard system information like CPU usage, RAM, and OS details.",
-        parameters: {
-            type: "OBJECT",
-            properties: {}
         }
     },
     {
@@ -109,6 +123,70 @@ const toolSchemas = [
         },
         required: ["fileName"]
       }
+    },
+    {
+        name: "runSysTerminalCommands",
+        description: "Executes a system terminal command on the user's machine to retrieve system information (battery, RAM, disk, processes, etc.). This tool should ONLY be used after the user has been shown the command and confirmed they want to run it.",
+        parameters: {
+            type: "OBJECT",
+            properties: {
+                command: {
+                    type: "STRING",
+                    description: "The exact CLI command to execute on the system."
+                }
+            },
+            required: ["command"]
+        }
+    },
+    {
+        name: "getSystemInfo",
+        description: "Gets basic system overview: platform, architecture, uptime, CPU model, total/free memory.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getBatteryStatus",
+        description: "Gets current battery percentage, charging status, and time remaining.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getCPUUsage",
+        description: "Gets current CPU usage percentage.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getMemoryUsage",
+        description: "Gets total, used, and free RAM in GB.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getNetworkInfo",
+        description: "Gets network interface details (IP, MAC, etc).",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getPublicIP",
+        description: "Gets the external public IP address of the system.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getRunningProcesses",
+        description: "Lists the top 10 currently running processes.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getDiskUsage",
+        description: "Gets disk space usage across all filesystems.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getTemperature",
+        description: "Gets current CPU temperature.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
+        name: "getActiveUsers",
+        description: "Gets a list of users currently logged into the system.",
+        parameters: { type: "OBJECT", properties: {} }
     }
 ];
 

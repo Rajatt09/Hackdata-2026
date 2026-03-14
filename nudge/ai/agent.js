@@ -19,7 +19,7 @@ const responseSchema = {
         },
         intentName: {
             type: "string",
-            enum: ["GREETING", "GET_FILES", "OTHER"],
+            enum: ["GREETING", "GET_FILES", "SYSTEM_INFO", "OTHER"],
             description: "The name of the identified intent."
         },
         isRequirementsNeeded: {
@@ -59,16 +59,33 @@ const fs = require('fs');
 // ... (rest of imports)
 const path = require('path');
 const fileSystemSkill = fs.readFileSync(path.join(__dirname, 'skills', 'fileSystemSkill.md'), 'utf-8');
+const systemInfoSkill = fs.readFileSync(path.join(__dirname, 'skills', 'systemInfoSkill.md'), 'utf-8');
+const greetingSkill = fs.readFileSync(path.join(__dirname, 'skills', 'greeting_skill.md'), 'utf-8');
+const unhandledQuerySkill = fs.readFileSync(path.join(__dirname, 'skills', 'unhandled_query.md'), 'utf-8');
+
+const skillsMap = {
+    'GET_FILES': { name: 'File System & Privacy', content: fileSystemSkill },
+    'SYSTEM_INFO': { name: 'System Information & Diagnostics', content: systemInfoSkill },
+    'GREETING': { name: 'Greeting', content: greetingSkill },
+    'OTHER': { name: 'Unhandled Query', content: unhandledQuerySkill }
+};
+
+// Set of sysinfo tool names for conditional skill/intent passing
+const sysinfoToolNames = new Set([
+    'getSystemInfo', 'getBatteryStatus', 'getCPUUsage', 'getMemoryUsage',
+    'getNetworkInfo', 'getPublicIP', 'getRunningProcesses', 'getDiskUsage',
+    'getTemperature', 'getActiveUsers', 'runSysTerminalCommands'
+]);
 
 const systemPrompt = fs.readFileSync(path.join(__dirname, 'systemPrompt.md'), 'utf-8');
-const refurbishPrompt = fs.readFileSync(path.join(__dirname, 'refurbishPrompt.md'), 'utf-8');
 
 // The system prompt contains placeholders like ${FILE_SYSTEM_SKILL_CONTENT}
 const systemInstruction = systemPrompt
     .replace('${FILE_SYSTEM_SKILL_CONTENT}', fileSystemSkill)
     .replace('${TOOL_SCHEMAS}', JSON.stringify(toolSchemas, null, 2))
-    .replace('${GREETING_SKILL_CONTENT}', '')
-    .replace('${UNHANDLED_QUERY_SKILL_CONTENT}', '');
+    .replace('${GREETING_SKILL_CONTENT}', greetingSkill)
+    .replace('${UNHANDLED_QUERY_SKILL_CONTENT}', unhandledQuerySkill)
+    .replace('${SYSTEM_INFO_SKILL_CONTENT}', systemInfoSkill);
 
 
 /**
@@ -115,6 +132,7 @@ async function processMessage(userMessage, chatHistory = []) {
         //--------------------------------------------------------
 
         const parts = response?.candidates?.[0]?.content?.parts || [];
+        console.log(`Parts: ${parts}`)
         const rawTextResponse = parts.filter(p => p.text).map(p => p.text).join('\n');
 
         let jsonResponse = null;
@@ -136,15 +154,21 @@ async function processMessage(userMessage, chatHistory = []) {
                     toolText = jsonResponse.user_response_message;
                 }
             } catch (e) {
-                console.log("[Step 1] Response is not structured JSON or failed to parse. Using raw text.");
-                toolText = rawTextResponse;
+                console.log("[Step 1] Response is not structured JSON or failed to parse.");
+                // Check if it looks like raw JSON meant for tools
+                if (rawTextResponse.includes('"functionCalls"') || rawTextResponse.includes('"{')) {
+                    console.log("[Step 1] Raw text appears to be tool JSON. Not using as friendly text.");
+                    toolText = "";
+                } else {
+                    toolText = rawTextResponse;
+                }
             }
         }
-
+        console.log(`[Step 1] Tool Text: ${toolText}`);
         let functionCalls = parts
             .filter(p => p.functionCall)
             .map(p => p.functionCall);
-
+        console.log(`[Step 2] Function Calls: ${functionCalls}`);
         // Merge tool calls from the JSON schema if present
         if (jsonResponse?.toolCallsrequired?.functionCalls) {
             console.log(`[Step 1] Found ${jsonResponse.toolCallsrequired.functionCalls.length} tool calls in JSON.`);
@@ -155,12 +179,30 @@ async function processMessage(userMessage, chatHistory = []) {
 
         let collectedFiles = [];
         let supplementalRawData = [];
+        let pendingCommand = null; // For runSysTerminalCommands confirmation flow
+        let sysinfoToolsCalled = false; // Track if any sysinfo tools were called
 
         for (const call of functionCalls) {
             const functionName = call.name;
             const args = call.args || {};
 
+            if (sysinfoToolNames.has(functionName)) {
+                sysinfoToolsCalled = true;
+            }
+
             console.log(`[AI] Executing tool: ${functionName}`, args);
+
+            // Intercept runSysTerminalCommands — do NOT execute directly.
+            // Hand it back to index.js for inline keyboard confirmation.
+            if (functionName === 'runSysTerminalCommands') {
+                console.log(`[AI] Intercepted runSysTerminalCommands. Storing for confirmation.`);
+                pendingCommand = {
+                    command: args.command || Object.values(args)[0],
+                    description: toolText || 'System terminal command',
+                    originalQuery: userMessage
+                };
+                continue; // Skip execution, move to next tool call if any
+            }
 
             let result;
 
@@ -212,31 +254,10 @@ async function processMessage(userMessage, chatHistory = []) {
         }
 
         //--------------------------------------------------
-
+        console.log(`[Step 2] Final tool text: ${toolText}`);
         // gemini 2 calling - sending text for refurbishing the response
-        let finalFriendlyText = toolText;
+        let finalFriendlyText = toolText || "Task processed successfully.";
 
-        if (jsonResponse?.intentName === 'GREETING') {
-            console.log(`[Step 3] Skipping Response Refurbishing for GREETING intent.`);
-        } else {
-            console.log(`[Step 3] Requesting Response Refurbishing...`);
-            let res = await ai.models.generateContent({
-                model: 'gemini-3.1-flash-lite-preview',
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            {
-                                text: refurbishPrompt.replace('${toolText}', toolText)
-                            }
-                        ]
-                    }
-                ]
-            });
-
-            finalFriendlyText = res?.candidates?.[0]?.content?.parts?.[0]?.text || toolText;
-            console.log(`[Step 3] Final response ready (length: ${finalFriendlyText.length})`);
-        }
 
         // Re-append raw data that bypassed refurbishment
         if (supplementalRawData.length > 0) {
@@ -254,7 +275,8 @@ async function processMessage(userMessage, chatHistory = []) {
         console.log(`--- [Agent] processMessage Completed Successfully ---\n`);
         return {
             text: finalFriendlyText,
-            files: collectedFiles   // this files should be an array of full paths of files to be sent
+            files: collectedFiles,   // this files should be an array of full paths of files to be sent
+            pendingCommand: pendingCommand  // if set, index.js should show confirmation keyboard
         };
 
 
@@ -263,5 +285,14 @@ async function processMessage(userMessage, chatHistory = []) {
         return `Sorry, I encountered an AI error: ${error.message}`;
     }
 }
+
+/**
+ * Takes raw tool output and rewrites it in the bot's persona based on the skill guidelines.
+ * @param {string} toolText Raw text from tool output or agent.
+ * @param {string} intentName The name of the intent/skill to use for context.
+ * @param {string} userMessage The original user message for context.
+ * @returns {Promise<string>} The refurbished/friendly response.
+ */
+
 
 module.exports = { processMessage };
