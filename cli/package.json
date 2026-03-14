@@ -1,0 +1,25 @@
+{
+  "name": "nudge-cli",
+  "version": "1.0.0",
+  "description": "CLI for nudge automation agent",
+  "bin": {
+    "nudge": "./bin/nudge.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "dotenv": "^17.3.1",
+    "figlet": "^1.11.0",
+    "gradient-string": "^3.0.0",
+    "nudge": "file:../nudge",
+    "ora": "^9.3.0",
+    "prompts": "^2.4.2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "models": [
+    {
+      "id": "gpt-4o",
+      "provider": "openai"
+    },
+    {
+      "id": "gpt-4.1",
+      "provider": "openai"
+    },
+    {
+      "id": "claude-3-sonnet",
+      "provider": "anthropic"
+    },
+    {
+      "id": "gemini-1.5-pro",
+      "provider": "google"
+    }
+  ]
+}
