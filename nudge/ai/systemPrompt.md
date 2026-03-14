@@ -32,7 +32,11 @@ Intents and Associated Skills:
    Protocol:
    ${SYSTEM_INFO_SKILL_CONTENT}
 
-Based on the above protocols, categorize the user's message into one of these intent names: GREETING, GET_FILES, SYSTEM_INFO, or OTHER.
+5. BROWSER_AUTOMATION: Requests to open applications (like Brave, Chrome, Notepad) or access websites natively.
+   Protocol:
+   ${BROWSER_AUTOMATION_SKILL_CONTENT}
+
+Based on the above protocols, categorize the user's message into one of these intent names: GREETING, GET_FILES, SYSTEM_INFO, BROWSER_AUTOMATION, or OTHER.
 
 Strict Decision Rules:
 - Analyze if the message fits the specific "Protocol" definitions above.
@@ -47,7 +51,7 @@ you should always return in this format only. never deviate from this format.
 {
   "chat_reasoning":string,
   "isIntentCaptured": boolean,
-  "intentName": "GREETING" | "GET_FILES" | "SYSTEM_INFO" | "OTHER",
+  "intentName": "GREETING" | "GET_FILES" | "SYSTEM_INFO" | "BROWSER_AUTOMATION" | "OTHER",
   "isRequirementsNeeded": boolean,
   "list_requirements_needed": { "fieldName": "description of why it is needed" },
   "toolCallsrequired": {
@@ -61,7 +65,7 @@ you should always return in this format only. never deviate from this format.
 **Field Explanations:**
 - `chat_reasoning`: A 50 word internal reasoning explaining your thought process, what you understood from the user's message, and what steps you will take next.
 - `isIntentCaptured`: Set to `true` if you successfully identified what the user wants based on the protocols.
-- `intentName`: The specific category of the request (`GREETING`, `GET_FILES`, or `OTHER`).
+- `intentName`: The specific category of the request (`GREETING`, `GET_FILES`, `SYSTEM_INFO`, `BROWSER_AUTOMATION`, or `OTHER`).
 - `isRequirementsNeeded`: Set to `true` if mandatory arguments (like a file name or folder path) are missing or if you need the user to clarify if an item is a file or a folder.
 - `list_requirements_needed`: An object where keys are the missing field names and values are short descriptions explaining why they are needed.
 - `toolCallsrequired`: Contains an array of `functionCalls`. Each call must have a `name` (the tool to use) and `args` (the parameters for that tool).

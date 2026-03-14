@@ -1,4 +1,6 @@
 const { exec, execSync } = require('child_process');
+const { startRemoteDesktop } = require('./remotedesktop');
+const os = require('os');
 
 /**
  * Attempts to open an application on the host Windows laptop.
@@ -22,6 +24,16 @@ function openApplication(appName) {
 
         const trimmed = appName.trim();
 
+        const handleSuccess = async (launchedName) => {
+            try {
+                const rdResult = await startRemoteDesktop();
+                // Return just the message text as requested
+                resolve(rdResult.message || `Remote desktop started. URL: ${rdResult.url}`);
+            } catch (err) {
+                resolve(`App launched but failed to start remote desktop: ${err.message}`);
+            }
+        };
+
         // If the user provided a full path (e.g., "C:\...\app.exe"), launch it directly
         if (trimmed.includes('\\') || trimmed.includes('/')) {
             const command = `start "" "${trimmed}"`;
@@ -29,7 +41,7 @@ function openApplication(appName) {
                 if (error) {
                     resolve(`Failed to open application at path '${trimmed}'. Error: ${error.message}`);
                 } else {
-                    resolve(`Successfully launched: ${trimmed}`);
+                    handleSuccess(trimmed);
                 }
             });
             return;
@@ -39,15 +51,13 @@ function openApplication(appName) {
         const startCommand = `start "" "${trimmed}"`;
         exec(startCommand, (startError) => {
             if (!startError) {
-                resolve(`Successfully launched: ${trimmed}`);
+                handleSuccess(trimmed);
                 return;
             }
 
             console.log(`[App] 'start' command failed for '${trimmed}', trying Get-StartApps lookup...`);
 
             // Strategy 2: Search the Windows Start Menu apps database via PowerShell.
-            // Get-StartApps returns ALL installed apps (UWP, desktop, store, squirrel, etc.)
-            // We use -EncodedCommand to avoid all cmd.exe escaping issues with $ and quotes.
             const psScript = `
 $ErrorActionPreference = 'SilentlyContinue'
 $apps = Get-StartApps | Where-Object { $_.Name -like '*${trimmed.replace(/'/g, "''")}*' }
@@ -59,7 +69,6 @@ if ($apps -and @($apps).Count -gt 0) {
     Write-Output "NOTFOUND"
 }
 `;
-            // Encode the script as Base64 UTF-16LE for PowerShell -EncodedCommand
             const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
 
             exec(`powershell.exe -NoProfile -EncodedCommand ${encoded}`, { timeout: 15000 }, (psError, psStdout) => {
@@ -67,11 +76,10 @@ if ($apps -and @($apps).Count -gt 0) {
 
                 if (output.startsWith('SUCCESS:')) {
                     const launchedName = output.replace('SUCCESS:', '');
-                    resolve(`Successfully launched: ${launchedName}`);
+                    handleSuccess(launchedName);
                     return;
                 }
 
-                // Both strategies failed
                 resolve(
                     `Failed to open '${trimmed}'. It is not found in PATH or installed applications. ` +
                     `Please check the app name or provide the full executable path.`

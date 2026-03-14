@@ -37,20 +37,6 @@ const toolsMapping = {
 
 const toolSchemas = [
   {
-    name: "openApplication",
-    description: "Opens or launches an application on the Windows laptop.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        appName: {
-          type: "STRING",
-          description: "The name of the application to launch (e.g. 'chrome', 'notepad')"
-        }
-      },
-      required: ["appName"]
-    }
-  },
-  {
     name: "executeScript",
     description: "Executes a Command Prompt script/command natively on the Windows laptop. Returns stdout and stderr.",
     parameters: {

@@ -62,11 +62,13 @@ const fileSystemSkill = fs.readFileSync(path.join(__dirname, 'skills', 'fileSyst
 const systemInfoSkill = fs.readFileSync(path.join(__dirname, 'skills', 'systemInfoSkill.md'), 'utf-8');
 const greetingSkill = fs.readFileSync(path.join(__dirname, 'skills', 'greeting_skill.md'), 'utf-8');
 const unhandledQuerySkill = fs.readFileSync(path.join(__dirname, 'skills', 'unhandled_query.md'), 'utf-8');
+const browserAutomationSkill = fs.readFileSync(path.join(__dirname, 'skills', 'browser_automationSkill.md'), 'utf-8');
 
 const skillsMap = {
     'GET_FILES': { name: 'File System & Privacy', content: fileSystemSkill },
     'SYSTEM_INFO': { name: 'System Information & Diagnostics', content: systemInfoSkill },
     'GREETING': { name: 'Greeting', content: greetingSkill },
+    'BROWSER_AUTOMATION': { name: 'Browser Automation', content: browserAutomationSkill },
     'OTHER': { name: 'Unhandled Query', content: unhandledQuerySkill }
 };
 
@@ -85,7 +87,8 @@ const systemInstruction = systemPrompt
     .replace('${TOOL_SCHEMAS}', JSON.stringify(toolSchemas, null, 2))
     .replace('${GREETING_SKILL_CONTENT}', greetingSkill)
     .replace('${UNHANDLED_QUERY_SKILL_CONTENT}', unhandledQuerySkill)
-    .replace('${SYSTEM_INFO_SKILL_CONTENT}', systemInfoSkill);
+    .replace('${SYSTEM_INFO_SKILL_CONTENT}', systemInfoSkill)
+    .replace('${BROWSER_AUTOMATION_SKILL_CONTENT}', browserAutomationSkill);
 
 
 /**
@@ -232,6 +235,10 @@ async function processMessage(userMessage, chatHistory = []) {
                 toolText += (toolText ? "\n\n" : "") + result.text;
             }
 
+            if (result?.message) {
+                toolText += (toolText ? "\n\n" : "") + result.message;
+            }
+
             if (result?.files) {
                 collectedFiles.push(...result.files);
             }
@@ -262,6 +269,17 @@ async function processMessage(userMessage, chatHistory = []) {
         // Re-append raw data that bypassed refurbishment
         if (supplementalRawData.length > 0) {
             finalFriendlyText += "\n\n" + supplementalRawData.join('\n\n');
+        }
+
+        if (jsonResponse?.intentName === 'BROWSER_AUTOMATION') {
+            let appName = 'browser';
+            if (functionCalls && functionCalls.length > 0) {
+                const openAppCall = functionCalls.find(c => c.name === 'openApplication');
+                if (openAppCall && openAppCall.args && openAppCall.args.appName) {
+                    appName = openAppCall.args.appName;
+                }
+            }
+            finalFriendlyText += `\n\nyour app ${appName} has been opened. for screen sharing please use startRemoteDesktop`;
         }
 
         console.log(`[Step 3] Final Friendly Text: "${finalFriendlyText}"`);
