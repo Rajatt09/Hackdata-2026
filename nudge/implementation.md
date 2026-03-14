@@ -52,3 +52,31 @@ The system will detect the host platform and adjust behavior accordingly:
 - `fast-glob`: For efficient file searching.
 - `@google/genai`: For LLM integration.
 - `dotenv`: For environment variable management.
+- `systeminformation`: For basic hardware stats.
+
+## System Information Gathering Workflow (Proposed)
+A multi-step, safety-aware workflow for handling system diagnostics and command execution.
+
+### 1. Intent Detection
+A new intent `SYSTEM_INFO` is added to the agent's classifier. This intent is triggered when users ask about battery, RAM, CPU usage, storage, network details, or active processes.
+
+### 2. Multi-Step Execution Flow
+To ensure safety, the system info workflow follows a structured interaction:
+- **Phase 1: Suggestion**: The LLM suggests up to 5 relevant CLI commands based on the user's query. Each suggestion includes a description and a severity score (1-5).
+- **Phase 2: Selection**: The user selects a command by its number (1-5).
+- **Phase 3: Confirmation**: The bot displays the selected command's details and severity, asking the user for explicit confirmation (e.g., "yes/no", "ha/nahi").
+- **Phase 4: Execution**: Only upon confirmation is the command executed natively.
+
+### 3. Severity Scale Reference
+| Score | Label | Examples | Meaning |
+|-------|-------|----------|---------|
+| 1 | Safe | `pmset -g batt`, `uptime` | Read-only, no side effects. |
+| 2 | Low Risk | `vm_stat`, `ps aux` | Informational but detailed. |
+| 3 | Moderate | `netstat`, `ifconfig` | Network/process introspection. |
+| 4 | High Risk | `kill PID`, `diskutil list` | Affects running processes. |
+| 5 | Dangerous | `kill -9`, `diskutil erase` | Potentially destructive. |
+
+### 4. Implementation Details
+- **Command Suggestion**: Handled by a specialized skill and a dedicated tool that uses the LLM to provide platform-specific command options.
+- **State Management**: The main message handler (`index.js`) maintains a `pendingConfirmations` state machine to track the conversation status.
+- **Safe Executor**: A dedicated bridge executes confirmed commands with timeouts and basic logging.

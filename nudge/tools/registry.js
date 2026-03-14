@@ -1,145 +1,223 @@
 const { openApplication } = require('./applications');
 const { listFiles, sendFile, zipFolder, findFilesByName } = require('./getfiles');
 const { executeScript } = require('./runscripts');
-const { getSystemStats } = require('./sysinfo');
+const {
+  runSysTerminalCommands,
+  getSystemInfo,
+  getBatteryStatus,
+  getCPUUsage,
+  getMemoryUsage,
+  getNetworkInfo,
+  getPublicIP,
+  getRunningProcesses,
+  getDiskUsage,
+  getTemperature,
+  getActiveUsers
+} = require('./sysinfo');
 
 const toolsMapping = {
-    openApplication,
-    listFiles,
-    sendFile,
-    zipFolder,
-    findFilesByName,
-    executeScript,
-    getSystemStats
+  openApplication,
+  listFiles,
+  sendFile,
+  zipFolder,
+  findFilesByName,
+  executeScript,
+  runSysTerminalCommands,
+  getSystemInfo,
+  getBatteryStatus,
+  getCPUUsage,
+  getMemoryUsage,
+  getNetworkInfo,
+  getPublicIP,
+  getRunningProcesses,
+  getDiskUsage,
+  getTemperature,
+  getActiveUsers
 };
 
 const toolSchemas = [
-    {
-        name: "openApplication",
-        description: "Opens or launches an application on the Windows laptop.",
-        parameters: {
-            type: "OBJECT",
-            properties: {
-                appName: { 
-                    type: "STRING", 
-                    description: "The name of the application to launch (e.g. 'chrome', 'notepad')" 
-                }
-            },
-            required: ["appName"]
+  {
+    name: "openApplication",
+    description: "Opens or launches an application on the Windows laptop.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        appName: {
+          type: "STRING",
+          description: "The name of the application to launch (e.g. 'chrome', 'notepad')"
         }
-    },
-    {
-        name: "executeScript",
-        description: "Executes a Command Prompt script/command natively on the Windows laptop. Returns stdout and stderr.",
-        parameters: {
-            type: "OBJECT",
-            properties: {
-                command: { 
-                    type: "STRING", 
-                    description: "The exact shell command to execute." 
-                }
-            },
-            required: ["command"]
+      },
+      required: ["appName"]
+    }
+  },
+  {
+    name: "executeScript",
+    description: "Executes a Command Prompt script/command natively on the Windows laptop. Returns stdout and stderr.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        command: {
+          type: "STRING",
+          description: "The exact shell command to execute."
         }
-    },
-    {
-        name: "getSystemStats",
-        description: "Gets standard system information like CPU usage, RAM, and OS details.",
-        parameters: {
-            type: "OBJECT",
-            properties: {}
+      },
+      required: ["command"]
+    }
+  },
+  {
+    name: "listFiles",
+    description: "Searches for a folder by name or sub-path on the user's Windows machine. If multiple matching folders are found, returns the list of paths. If exactly one folder is found, lists its contents.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        directoryPath: {
+          type: "STRING",
+          description: "The folder name or sub-path to search for (e.g., 'Documents', 'harshal/Documents', 'Projects/myApp')."
         }
-    },
-    {
-      name: "listFiles",
-      description: "Searches for a folder by name or sub-path on the user's Windows machine. If multiple matching folders are found, returns the list of paths. If exactly one folder is found, lists its contents.",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          directoryPath: {
-            type: "STRING",
-            description: "The folder name or sub-path to search for (e.g., 'Documents', 'harshal/Documents', 'Projects/myApp')."
-          }
+      },
+      required: ["directoryPath"]
+    }
+  },
+  {
+    name: "sendFile",
+    description: "Uploads a specific local file from the user's machine to the Telegram chat. Only works with files, NOT folders. For folders, use zipFolder instead.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        filePath: {
+          type: "STRING",
+          description: "The absolute path of the file to send (e.g., '/Users/john/Documents/report.pdf')."
+        }
+      },
+      required: ["filePath"]
+    }
+  },
+  {
+    name: "zipFolder",
+    description: "Compresses an entire folder into a .zip file and sends it to the Telegram chat. Only works with directories, NOT individual files. For files, use sendFile instead.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        folderPath: {
+          type: "STRING",
+          description: "The absolute path or name of the folder to zip and send (e.g., '/Users/john/Documents/myProject' or 'Downloads/myProject')."
+        }
+      },
+      required: ["folderPath"]
+    }
+  },
+  {
+    name: "findFilesByName",
+    description: "Searches the user's entire local computer (or a specific drive/folder) for files OR folders matching a specific name. Uses fast-glob for substring matching.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        fileName: {
+          type: "STRING",
+          description: "The name or partial name of the file or folder to search for (e.g., 'rajat', 'budget.xlsx', 'src', 'config')."
         },
-        required: ["directoryPath"]
-      }
-    },
-    {
-      name: "sendFile",
-      description: "Uploads a specific local file from the user's machine to the Telegram chat. Only works with files, NOT folders. For folders, use zipFolder instead.",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          filePath: {
-            type: "STRING",
-            description: "The absolute path of the file to send (e.g., '/Users/john/Documents/report.pdf')."
-          }
-        },
-        required: ["filePath"]
-      }
-    },
-    {
-      name: "zipFolder",
-      description: "Compresses an entire folder into a .zip file and sends it to the Telegram chat. Only works with directories, NOT individual files. For files, use sendFile instead.",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          folderPath: {
-            type: "STRING",
-            description: "The absolute path or name of the folder to zip and send (e.g., '/Users/john/Documents/myProject' or 'Downloads/myProject')."
-          }
-        },
-        required: ["folderPath"]
-      }
-    },
-    {
-      name: "findFilesByName",
-      description: "Searches the user's entire local computer (or a specific drive/folder) for files OR folders matching a specific name. Uses fast-glob for substring matching.",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          fileName: {
-            type: "STRING",
-            description: "The name or partial name of the file or folder to search for (e.g., 'rajat', 'budget.xlsx', 'src', 'config')."
-          },
-          searchRoot: {
-            type: "STRING",
-            description: "Optional. A specific drive or directory to narrow the search (e.g., 'D:\\' or 'C:\\Users\\John'). If omitted, it searches the entire system."
-          }
-        },
-        required: ["fileName"]
-      }
-    },
-    {
-        name: "openApplication",
-        description: "Opens or launches ANY application installed on the Windows laptop by name. Works with all app types: PATH apps (chrome, notepad, calc), desktop apps (Telegram, Discord, Obsidian, Spotify, Figma), UWP/Store apps (WhatsApp, Calculator, Camera), and any other installed application visible in the Start Menu. Just pass the common app name. Also accepts a full executable path if needed.",
-        parameters: {
-            type: "OBJECT",
-            properties: {
-                appName: { 
-                    type: "STRING", 
-                    description: "The name of the application to launch (e.g. 'chrome', 'telegram', 'whatsapp', 'discord', 'obsidian', 'spotify', 'notepad', 'code', 'calc'). Can also be a full .exe path." 
-                }
-            },
-            required: ["appName"]
+        searchRoot: {
+          type: "STRING",
+          description: "Optional. A specific drive or directory to narrow the search (e.g., 'D:\\' or 'C:\\Users\\John'). If omitted, it searches the entire system."
         }
-    },
-    {
-        name: "startRemoteDesktop",
-        description: "Starts a live remote desktop streaming session. Captures the PC screen in real-time and streams it to a web page accessible from the user's phone browser. Also accepts touch, mouse, and keyboard input from the phone to control the PC. Uses a Cloudflare Tunnel to make it accessible over the internet. Returns a public URL the user can open on their phone. Only one session can be active at a time. Auto-stops after 5 minutes of inactivity.",
-        parameters: {
-            type: "OBJECT",
-            properties: {}
+      },
+      required: ["fileName"]
+    }
+  },
+  {
+    name: "runSysTerminalCommands",
+    description: "Executes a system terminal command on the user's machine to retrieve system information (battery, RAM, disk, processes, etc.). This tool should ONLY be used after the user has been shown the command and confirmed they want to run it.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        command: {
+          type: "STRING",
+          description: "The exact CLI command to execute on the system."
         }
-    },
-    {
-        name: "stopRemoteDesktop",
-        description: "Stops the currently running remote desktop streaming session. Closes the WebSocket server, disconnects any connected clients, and shuts down the Cloudflare Tunnel. Use this when the user says 'stop streaming', 'close remote desktop', 'end screen share', or similar.",
-        parameters: {
-            type: "OBJECT",
-            properties: {}
+      },
+      required: ["command"]
+    }
+  },
+  {
+    name: "getSystemInfo",
+    description: "Gets basic system overview: platform, architecture, uptime, CPU model, total/free memory.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getBatteryStatus",
+    description: "Gets current battery percentage, charging status, and time remaining.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getCPUUsage",
+    description: "Gets current CPU usage percentage.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getMemoryUsage",
+    description: "Gets total, used, and free RAM in GB.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getNetworkInfo",
+    description: "Gets network interface details (IP, MAC, etc).",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getPublicIP",
+    description: "Gets the external public IP address of the system.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getRunningProcesses",
+    description: "Lists the top 10 currently running processes.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getDiskUsage",
+    description: "Gets disk space usage across all filesystems.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getTemperature",
+    description: "Gets current CPU temperature.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "getActiveUsers",
+    description: "Gets a list of users currently logged into the system.",
+    parameters: { type: "OBJECT", properties: {} }
+  },
+  {
+    name: "openApplication",
+    description: "Opens or launches ANY application installed on the Windows laptop by name. Works with all app types: PATH apps (chrome, notepad, calc), desktop apps (Telegram, Discord, Obsidian, Spotify, Figma), UWP/Store apps (WhatsApp, Calculator, Camera), and any other installed application visible in the Start Menu. Just pass the common app name. Also accepts a full executable path if needed.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        appName: {
+          type: "STRING",
+          description: "The name of the application to launch (e.g. 'chrome', 'telegram', 'whatsapp', 'discord', 'obsidian', 'spotify', 'notepad', 'code', 'calc'). Can also be a full .exe path."
         }
-    },
+      },
+      required: ["appName"]
+    }
+  },
+  {
+    name: "startRemoteDesktop",
+    description: "Starts a live remote desktop streaming session. Captures the PC screen in real-time and streams it to a web page accessible from the user's phone browser. Also accepts touch, mouse, and keyboard input from the phone to control the PC. Uses a Cloudflare Tunnel to make it accessible over the internet. Returns a public URL the user can open on their phone. Only one session can be active at a time. Auto-stops after 5 minutes of inactivity.",
+    parameters: {
+      type: "OBJECT",
+      properties: {}
+    }
+  },
+  {
+    name: "stopRemoteDesktop",
+    description: "Stops the currently running remote desktop streaming session. Closes the WebSocket server, disconnects any connected clients, and shuts down the Cloudflare Tunnel. Use this when the user says 'stop streaming', 'close remote desktop', 'end screen share', or similar.",
+    parameters: {
+      type: "OBJECT",
+      properties: {}
+    }
+  },
 ];
 
 module.exports = { toolsMapping, toolSchemas };

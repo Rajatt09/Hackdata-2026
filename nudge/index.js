@@ -2,7 +2,8 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require("fs");
 
-const { processMessage } = require('./ai/agent');
+const { processMessage, refurbishResponse } = require('./ai/agent');
+const { runSysTerminalCommands } = require('./tools/sysinfo');
 
 const token = process.env.BOT_TOKEN;
 const allowedChatsStr = process.env.ALLOWED_CHAT_IDS || '';
@@ -16,11 +17,14 @@ if (!token) {
     console.error("Error: BOT_TOKEN is not set in the .env file.");
     process.exit(1);
 }
-
+// yo
 const bot = new TelegramBot(token, { polling: true });
 
 // In-memory chat history per chat (keyed by chatId)
 const chatHistories = new Map();
+
+// Pending system commands awaiting inline keyboard confirmation (keyed by chatId)
+const pendingCommands = new Map();
 
 /* ---------------- FILE SENDER ---------------- */
 
@@ -78,6 +82,39 @@ bot.on('message', async (msg) => {
             return;
         }
 
+        /* -------- PENDING COMMAND CONFIRMATION (Inline Keyboard) -------- */
+
+        if (result.pendingCommand) {
+            const cmd = result.pendingCommand;
+            console.log(`[SysCmd] Pending command detected: "${cmd.command}"`);
+
+            // Store the command for this chat
+            pendingCommands.set(chatId, cmd);
+
+            const confirmText =
+                `Command: ${cmd.command}\n` +
+                `Description: ${cmd.description}\n\n` +
+                `Do you want to execute this command?`;
+
+            await bot.sendMessage(chatId, confirmText, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '✅ Yes, Execute', callback_data: 'syscmd_yes' },
+                            { text: '❌ No, Cancel', callback_data: 'syscmd_no' }
+                        ]
+                    ]
+                }
+            });
+            console.log(`[SysCmd] Inline keyboard sent. Waiting for user confirmation.`);
+
+            // Update history and return early — don't send any other text/files yet
+            history.push({ role: 'user', text: msg.text });
+            history.push({ role: 'bot', text: `[Awaiting confirmation] ${cmd.command}` });
+            while (history.length > 20) history.shift();
+            return;
+        }
+
         /* -------- SEND TEXT -------- */
 
         if (result.text) {
@@ -121,6 +158,65 @@ bot.on('message', async (msg) => {
         ).catch(console.error);
     }
 
+});
+
+/* ---------------- CHUNKED MESSAGE SENDER ---------------- */
+
+async function sendMessageChunks(chatId, text) {
+    const MAX_LENGTH = 4000;
+    if (text.length <= MAX_LENGTH) {
+        await bot.sendMessage(chatId, text);
+        return;
+    }
+
+    console.log(`[Telegram] Message too long (${text.length}), sending in chunks...`);
+    for (let i = 0; i < text.length; i += MAX_LENGTH) {
+        const chunk = text.substring(i, i + MAX_LENGTH);
+        await bot.sendMessage(chatId, chunk);
+    }
+}
+
+/* ---------- INLINE KEYBOARD CALLBACK HANDLER ---------- */
+
+bot.on('callback_query', async (callbackQuery) => {
+    const chatId = callbackQuery.message.chat.id;
+    const data = callbackQuery.data;
+
+    console.log(`\n--- [Callback] Received: "${data}" from chatId: ${chatId} ---`);
+
+    // Acknowledge the button press immediately (removes loading spinner)
+    await bot.answerCallbackQuery(callbackQuery.id);
+
+    if (data === 'syscmd_yes') {
+        const cmd = pendingCommands.get(chatId);
+
+        if (!cmd) {
+            await bot.sendMessage(chatId, 'No pending command found. Please start a new request.');
+            return;
+        }
+
+        console.log(`[SysCmd] User confirmed. Executing: "${cmd.command}"`);
+        pendingCommands.delete(chatId);
+
+        await bot.sendChatAction(chatId, 'typing').catch(() => {});
+
+        try {
+            const output = await runSysTerminalCommands(cmd.command);
+            console.log(`[SysCmd] Execution complete. Output length: ${output.length}`);
+            
+            // Send raw output in chunks (no refurbishment as requested)
+            const header = `Result for: \`${cmd.command}\`\n\n`;
+            await sendMessageChunks(chatId, header + output);
+        } catch (err) {
+            console.error(`[SysCmd] Execution failed:`, err.message);
+            await bot.sendMessage(chatId, `Command failed: ${err.message}`);
+        }
+
+    } else if (data === 'syscmd_no') {
+        console.log(`[SysCmd] User declined. Clearing pending command.`);
+        pendingCommands.delete(chatId);
+        await bot.sendMessage(chatId, 'Command cancelled. Is there anything else I can help you with?');
+    }
 });
 
 console.log("Nudge bot backend is running...");
