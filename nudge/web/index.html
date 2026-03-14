@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>MobiClaw Remote Desktop</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+                background: #111;
+                touch-action: none;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #canvas {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                cursor: crosshair;
+            }
+            #status {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: rgba(0, 0, 0, 0.7);
+                color: #0f0;
+                font: 12px monospace;
+                padding: 4px 8px;
+                z-index: 100;
+                transition: opacity 0.5s;
+            }
+            #status.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+            #keyboard-area {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(0, 0, 0, 0.85);
+                display: none;
+                flex-direction: column;
+                z-index: 200;
+                padding: 6px;
+            }
+            #keyboard-area.visible {
+                display: flex;
+            }
+            #keyboard-area .kb-row {
+                display: flex;
+                justify-content: center;
+                gap: 3px;
+                margin-bottom: 3px;
+            }
+            #keyboard-area .kb-key {
+                min-width: 28px;
+                height: 36px;
+                background: #333;
+                border: 1px solid #555;
+                border-radius: 4px;
+                color: #eee;
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+            #keyboard-area .kb-key:active {
+                background: #0a0;
+                color: #000;
+            }
+            #keyboard-area .kb-key.wide {
+                min-width: 50px;
+                font-size: 11px;
+            }
+            #keyboard-area .kb-key.space {
+                flex: 1;
+                max-width: 200px;
+            }
+            #keyboard-area .kb-key.active-mod {
+                background: #0a0;
+                color: #000;
+            }
+            #kb-close {
+                position: absolute;
+                top: 4px;
+                right: 8px;
+                color: #f55;
+                font-size: 18px;
+                cursor: pointer;
+                z-index: 201;
+            }
+            #keyboard-btn {
+                position: fixed;
+                bottom: 12px;
+                right: 12px;
+                width: 48px;
+                height: 48px;
+                background: rgba(0, 0, 0, 0.6);
+                border: 2px solid #0f0;
+                border-radius: 50%;
+                color: #0f0;
+                font-size: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                cursor: pointer;
+            }
+            #toolbar {
+                position: fixed;
+                bottom: 12px;
+                left: 12px;
+                display: flex;
+                gap: 8px;
+                z-index: 100;
+            }
+            .tool-btn {
+                width: 40px;
+                height: 40px;
+                background: rgba(0, 0, 0, 0.6);
+                border: 1px solid #555;
+                border-radius: 8px;
+                color: #ccc;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+            .tool-btn.active {
+                border-color: #0f0;
+                color: #0f0;
+            }
+            #crosshair {
+                position: fixed;
+                pointer-events: none;
+                z-index: 99;
+                display: none;
+            }
+            #crosshair .ch {
+                position: absolute;
+                background: rgba(0, 255, 0, 0.7);
+            }
+            #crosshair .chH {
+                width: 24px;
+                height: 2px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            #crosshair .chV {
+                width: 2px;
+                height: 24px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            #crosshair .chDot {
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: #ff0;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="status">Connecting...</div>
+        <canvas id="canvas"></canvas>
+        <div id="toolbar">
+            <div class="tool-btn" id="btn-right-click" title="Right Click mode">
+                R
+            </div>
+            <div class="tool-btn" id="btn-zoom" title="Zoom mode">Z</div>
+        </div>
+        <div id="keyboard-btn" title="Open keyboard">K</div>
+        <div id="crosshair">
+            <div class="ch chH"></div>
+            <div class="ch chV"></div>
+            <div class="ch chDot"></div>
+        </div>
+        <div id="keyboard-area">
+            <div id="kb-close">X</div>
+        </div>
+
+        <script>
+            (function () {
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+                const statusEl = document.getElementById("status");
+                const keyboardBtn = document.getElementById("keyboard-btn");
+                const btnRightClick =
+                    document.getElementById("btn-right-click");
+                const btnZoom = document.getElementById("btn-zoom");
+                const crosshairEl = document.getElementById("crosshair");
+                const keyboardArea = document.getElementById("keyboard-area");
+                const kbClose = document.getElementById("kb-close");
+
+                let ws = null;
+                let screenW = 1920,
+                    screenH = 1080;
+                let connected = false;
+                let rightClickMode = false;
+
+                const ZOOM_LEVEL = 3;
+                let zoomEnabled = false;
+                let zoomed = false;
+                let zoomSrcX = 0,
+                    zoomSrcY = 0;
+                let zoomSrcW = 0,
+                    zoomSrcH = 0;
+
+                function updateAspectRatio() {
+                    canvas.style.aspectRatio = screenW + " / " + screenH;
+                }
+
+                function clampZoomRegion() {
+                    if (zoomSrcX < 0) zoomSrcX = 0;
+                    if (zoomSrcY < 0) zoomSrcY = 0;
+                    if (zoomSrcX + zoomSrcW > screenW)
+                        zoomSrcX = screenW - zoomSrcW;
+                    if (zoomSrcY + zoomSrcH > screenH)
+                        zoomSrcY = screenH - zoomSrcH;
+                }
+
+                function setZoomRegion(centerScreenX, centerScreenY) {
+                    zoomSrcW = screenW / ZOOM_LEVEL;
+                    zoomSrcH = screenH / ZOOM_LEVEL;
+                    zoomSrcX = centerScreenX - zoomSrcW / 2;
+                    zoomSrcY = centerScreenY - zoomSrcH / 2;
+                    clampZoomRegion();
+                }
+
+                function canvasToScreen(clientX, clientY) {
+                    const rect = canvas.getBoundingClientRect();
+                    let fx = (clientX - rect.left) / rect.width;
+                    let fy = (clientY - rect.top) / rect.height;
+
+                    fx = Math.max(0, Math.min(1, fx));
+                    fy = Math.max(0, Math.min(1, fy));
+
+                    let sx, sy;
+                    if (zoomed) {
+                        sx = zoomSrcX + fx * zoomSrcW;
+                        sy = zoomSrcY + fy * zoomSrcH;
+                    } else {
+                        sx = fx * screenW;
+                        sy = fy * screenH;
+                    }
+
+                    return {
+                        x: Math.max(0, Math.min(screenW - 1, Math.round(sx))),
+                        y: Math.max(0, Math.min(screenH - 1, Math.round(sy))),
+                    };
+                }
+
+                let statusTimeout = null;
+                function showStatus(text) {
+                    statusEl.textContent = text;
+                    statusEl.classList.remove("hidden");
+                    if (statusTimeout) clearTimeout(statusTimeout);
+                    statusTimeout = setTimeout(
+                        () => statusEl.classList.add("hidden"),
+                        3000,
+                    );
+                }
+
+                function send(obj) {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify(obj));
+                    }
+                }
+
+                btnRightClick.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    rightClickMode = !rightClickMode;
+                    btnRightClick.classList.toggle("active", rightClickMode);
+                    showStatus(
+                        rightClickMode
+                            ? "Right-click mode ON"
+                            : "Right-click mode OFF",
+                    );
+                });
+
+                btnZoom.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (zoomed) {
+                        zoomed = false;
+                        zoomEnabled = false;
+                        btnZoom.classList.remove("active");
+                        showStatus("Zoomed out");
+                    } else if (zoomEnabled) {
+                        zoomEnabled = false;
+                        btnZoom.classList.remove("active");
+                        showStatus("Zoom cancelled");
+                    } else {
+                        zoomEnabled = true;
+                        btnZoom.classList.add("active");
+                        showStatus("Tap where to zoom in");
+                    }
+                });
+
+                let kbVisible = false;
+                let shiftActive = false;
+                let ctrlActive = false;
+                let altActive = false;
+
+                const KB_ROWS = [
+                    [
+                        "Esc",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9",
+                        "0",
+                        "-",
+                        "=",
+                        "Bksp",
+                    ],
+                    [
+                        "Tab",
+                        "q",
+                        "w",
+                        "e",
+                        "r",
+                        "t",
+                        "y",
+                        "u",
+                        "i",
+                        "o",
+                        "p",
+                        "[",
+                        "]",
+                        "\\",
+                    ],
+                    [
+                        "Caps",
+                        "a",
+                        "s",
+                        "d",
+                        "f",
+                        "g",
+                        "h",
+                        "j",
+                        "k",
+                        "l",
+                        ";",
+                        "'",
+                        "Enter",
+                    ],
+                    [
+                        "Shift",
+                        "z",
+                        "x",
+                        "c",
+                        "v",
+                        "b",
+                        "n",
+                        "m",
+                        ",",
+                        ".",
+                        "/",
+                        "Shift",
+                    ],
+                    ["Ctrl", "Alt", "Space", "Alt", "Ctrl"],
+                ];
+
+                const KB_KEY_MAP = {
+                    Esc: "Escape",
+                    Bksp: "Backspace",
+                    Tab: "Tab",
+                    Caps: "CapsLock",
+                    Enter: "Enter",
+                    Shift: "Shift",
+                    Ctrl: "Control",
+                    Alt: "Alt",
+                    Space: " ",
+                    "\\": "\\",
+                    "[": "[",
+                    "]": "]",
+                    ";": ";",
+                    "'": "'",
+                    ",": ",",
+                    ".": ".",
+                    "/": "/",
+                    "-": "-",
+                    "=": "=",
+                };
+
+                const SHIFT_MAP = {
+                    1: "!",
+                    2: "@",
+                    3: "#",
+                    4: "$",
+                    5: "%",
+                    6: "^",
+                    7: "&",
+                    8: "*",
+                    9: "(",
+                    0: ")",
+                    "-": "_",
+                    "=": "+",
+                    "[": "{",
+                    "]": "}",
+                    "\\": "|",
+                    ";": ":",
+                    "'": '"',
+                    ",": "<",
+                    ".": ">",
+                    "/": "?",
+                };
+
+                function buildKeyboard() {
+                    KB_ROWS.forEach((row) => {
+                        const rowDiv = document.createElement("div");
+                        rowDiv.className = "kb-row";
+                        row.forEach((label) => {
+                            const key = document.createElement("div");
+                            key.className = "kb-key";
+                            key.textContent = label;
+                            if (
+                                [
+                                    "Bksp",
+                                    "Enter",
+                                    "Shift",
+                                    "Tab",
+                                    "Caps",
+                                ].includes(label)
+                            )
+                                key.classList.add("wide");
+                            if (["Ctrl", "Alt"].includes(label))
+                                key.classList.add("wide");
+                            if (label === "Space") key.classList.add("space");
+                            key.setAttribute("data-key", label);
+
+                            key.addEventListener("touchstart", (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleKbKey(label);
+                            });
+                            key.addEventListener("mousedown", (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleKbKey(label);
+                            });
+                            rowDiv.appendChild(key);
+                        });
+                        keyboardArea.appendChild(rowDiv);
+                    });
+                }
+
+                function handleKbKey(label) {
+                    if (label === "Shift") {
+                        shiftActive = !shiftActive;
+                        updateModifierDisplay();
+                        if (shiftActive)
+                            send({ type: "keydown", key: "Shift" });
+                        else send({ type: "keyup", key: "Shift" });
+                        return;
+                    }
+                    if (label === "Ctrl") {
+                        ctrlActive = !ctrlActive;
+                        updateModifierDisplay();
+                        if (ctrlActive)
+                            send({ type: "keydown", key: "Control" });
+                        else send({ type: "keyup", key: "Control" });
+                        return;
+                    }
+                    if (label === "Alt") {
+                        altActive = !altActive;
+                        updateModifierDisplay();
+                        if (altActive) send({ type: "keydown", key: "Alt" });
+                        else send({ type: "keyup", key: "Alt" });
+                        return;
+                    }
+                    if (label === "Caps") {
+                        send({ type: "keydown", key: "CapsLock" });
+                        send({ type: "keyup", key: "CapsLock" });
+                        return;
+                    }
+
+                    let key = KB_KEY_MAP[label] || label;
+                    if (shiftActive && key.length === 1) {
+                        if (key >= "a" && key <= "z") key = key.toUpperCase();
+                        else if (SHIFT_MAP[key]) key = SHIFT_MAP[key];
+                    }
+
+                    send({ type: "keydown", key: key });
+                    send({ type: "keyup", key: key });
+
+                    if (shiftActive) {
+                        shiftActive = false;
+                        send({ type: "keyup", key: "Shift" });
+                        updateModifierDisplay();
+                    }
+                    if (ctrlActive) {
+                        ctrlActive = false;
+                        send({ type: "keyup", key: "Control" });
+                        updateModifierDisplay();
+                    }
+                    if (altActive) {
+                        altActive = false;
+                        send({ type: "keyup", key: "Alt" });
+                        updateModifierDisplay();
+                    }
+                }
+
+                function updateModifierDisplay() {
+                    keyboardArea.querySelectorAll(".kb-key").forEach((el) => {
+                        const k = el.getAttribute("data-key");
+                        if (k === "Shift")
+                            el.classList.toggle("active-mod", shiftActive);
+                        if (k === "Ctrl")
+                            el.classList.toggle("active-mod", ctrlActive);
+                        if (k === "Alt")
+                            el.classList.toggle("active-mod", altActive);
+                    });
+                }
+
+                buildKeyboard();
+
+                keyboardBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    kbVisible = !kbVisible;
+                    keyboardArea.classList.toggle("visible", kbVisible);
+                    showStatus(kbVisible ? "Keyboard open" : "Keyboard closed");
+                });
+
+                kbClose.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    kbVisible = false;
+                    keyboardArea.classList.remove("visible");
+                });
+
+                function showCrosshair(clientX, clientY) {
+                    crosshairEl.style.left = clientX + "px";
+                    crosshairEl.style.top = clientY + "px";
+                    crosshairEl.style.display = "block";
+                }
+                function hideCrosshair() {
+                    crosshairEl.style.display = "none";
+                }
+
+                let touchStartPos = null;
+                let lastTouchPos = null;
+                let touchMoved = false;
+                let lastScrollY = 0;
+                let lastMoveTime = 0;
+                const MOVE_THROTTLE_MS = 30;
+                const TAP_MOVE_THRESHOLD = 10;
+                let touchStartClientX = 0,
+                    touchStartClientY = 0;
+
+                let isPanning = false;
+                let panLastClientX = 0,
+                    panLastClientY = 0;
+
+                canvas.addEventListener(
+                    "touchstart",
+                    (e) => {
+                        e.preventDefault();
+
+                        if (e.touches.length === 2) {
+                            lastScrollY = e.touches[0].clientY;
+                            touchStartPos = null;
+                            lastTouchPos = null;
+                            isPanning = false;
+                            return;
+                        }
+
+                        if (e.touches.length === 1) {
+                            const touch = e.touches[0];
+                            const pos = canvasToScreen(
+                                touch.clientX,
+                                touch.clientY,
+                            );
+
+                            touchStartClientX = touch.clientX;
+                            touchStartClientY = touch.clientY;
+                            touchStartPos = pos;
+                            lastTouchPos = pos;
+                            touchMoved = false;
+                            isPanning = false;
+                            panLastClientX = touch.clientX;
+                            panLastClientY = touch.clientY;
+                            lastScrollY = touch.clientY;
+
+                            showCrosshair(touch.clientX, touch.clientY);
+
+                            if (zoomEnabled && !zoomed) {
+                                setZoomRegion(pos.x, pos.y);
+                                zoomed = true;
+                                zoomEnabled = false;
+                                showStatus("Zoomed in");
+                                touchStartPos = null;
+                                lastTouchPos = null;
+                                hideCrosshair();
+                                return;
+                            }
+
+                            if (!zoomed) {
+                                send({
+                                    type: "mousedown",
+                                    x: pos.x,
+                                    y: pos.y,
+                                    button: rightClickMode ? "right" : "left",
+                                });
+                            }
+                        }
+                    },
+                    { passive: false },
+                );
+
+                canvas.addEventListener(
+                    "touchmove",
+                    (e) => {
+                        e.preventDefault();
+                        const now = Date.now();
+
+                        if (e.touches.length >= 2) {
+                            const touch = e.touches[0];
+                            const deltaY = lastScrollY - touch.clientY;
+                            lastScrollY = touch.clientY;
+                            if (Math.abs(deltaY) > 3) {
+                                send({
+                                    type: "scroll",
+                                    deltaY: deltaY > 0 ? -1 : 1,
+                                });
+                            }
+                            return;
+                        }
+
+                        if (e.touches.length === 1) {
+                            const touch = e.touches[0];
+                            showCrosshair(touch.clientX, touch.clientY);
+
+                            const dx = touch.clientX - touchStartClientX;
+                            const dy = touch.clientY - touchStartClientY;
+                            if (
+                                Math.abs(dx) > TAP_MOVE_THRESHOLD ||
+                                Math.abs(dy) > TAP_MOVE_THRESHOLD
+                            ) {
+                                touchMoved = true;
+                            }
+
+                            if (zoomed && touchMoved) {
+                                isPanning = true;
+                                if (now - lastMoveTime >= MOVE_THROTTLE_MS) {
+                                    const deltaClientX =
+                                        touch.clientX - panLastClientX;
+                                    const deltaClientY =
+                                        touch.clientY - panLastClientY;
+                                    panLastClientX = touch.clientX;
+                                    panLastClientY = touch.clientY;
+
+                                    const rect = canvas.getBoundingClientRect();
+                                    const screenDX =
+                                        -deltaClientX * (zoomSrcW / rect.width);
+                                    const screenDY =
+                                        -deltaClientY *
+                                        (zoomSrcH / rect.height);
+
+                                    zoomSrcX += screenDX;
+                                    zoomSrcY += screenDY;
+                                    clampZoomRegion();
+                                    lastMoveTime = now;
+                                }
+                            } else if (!zoomed) {
+                                if (now - lastMoveTime >= MOVE_THROTTLE_MS) {
+                                    const pos = canvasToScreen(
+                                        touch.clientX,
+                                        touch.clientY,
+                                    );
+                                    lastTouchPos = pos;
+                                    if (touchMoved) {
+                                        send({
+                                            type: "mousemove",
+                                            x: pos.x,
+                                            y: pos.y,
+                                        });
+                                    }
+                                    lastMoveTime = now;
+                                }
+                            }
+                        }
+                    },
+                    { passive: false },
+                );
+
+                canvas.addEventListener(
+                    "touchend",
+                    (e) => {
+                        e.preventDefault();
+                        hideCrosshair();
+
+                        if (!touchStartPos) return;
+
+                        if (zoomed && isPanning) {
+                            isPanning = false;
+                            touchStartPos = null;
+                            lastTouchPos = null;
+                            return;
+                        }
+
+                        const finalPos = touchMoved
+                            ? lastTouchPos
+                            : touchStartPos;
+                        if (!finalPos) return;
+
+                        if (zoomed) {
+                            send({
+                                type: "mousedown",
+                                x: finalPos.x,
+                                y: finalPos.y,
+                                button: rightClickMode ? "right" : "left",
+                            });
+                            send({
+                                type: "mouseup",
+                                x: finalPos.x,
+                                y: finalPos.y,
+                                button: rightClickMode ? "right" : "left",
+                            });
+                        } else {
+                            send({
+                                type: "mouseup",
+                                x: finalPos.x,
+                                y: finalPos.y,
+                                button: rightClickMode ? "right" : "left",
+                            });
+                        }
+
+                        touchStartPos = null;
+                        lastTouchPos = null;
+                        isPanning = false;
+                    },
+                    { passive: false },
+                );
+
+                canvas.addEventListener("mousedown", (e) => {
+                    const pos = canvasToScreen(e.clientX, e.clientY);
+                    if (zoomEnabled && !zoomed) {
+                        setZoomRegion(pos.x, pos.y);
+                        zoomed = true;
+                        zoomEnabled = false;
+                        showStatus("Zoomed in");
+                        return;
+                    }
+                    const button =
+                        e.button === 2
+                            ? "right"
+                            : e.button === 1
+                              ? "middle"
+                              : "left";
+                    send({ type: "mousedown", x: pos.x, y: pos.y, button });
+                });
+
+                canvas.addEventListener("mousemove", (e) => {
+                    if (e.buttons === 0) return;
+                    const pos = canvasToScreen(e.clientX, e.clientY);
+                    send({ type: "mousemove", x: pos.x, y: pos.y });
+                });
+
+                canvas.addEventListener("mouseup", (e) => {
+                    const pos = canvasToScreen(e.clientX, e.clientY);
+                    const button =
+                        e.button === 2
+                            ? "right"
+                            : e.button === 1
+                              ? "middle"
+                              : "left";
+                    send({ type: "mouseup", x: pos.x, y: pos.y, button });
+                });
+
+                canvas.addEventListener("dblclick", (e) => {
+                    const pos = canvasToScreen(e.clientX, e.clientY);
+                    send({ type: "dblclick", x: pos.x, y: pos.y });
+                });
+
+                canvas.addEventListener("contextmenu", (e) =>
+                    e.preventDefault(),
+                );
+
+                canvas.addEventListener(
+                    "wheel",
+                    (e) => {
+                        e.preventDefault();
+                        send({ type: "scroll", deltaY: e.deltaY > 0 ? -1 : 1 });
+                    },
+                    { passive: false },
+                );
+
+                document.addEventListener("keydown", (e) => {
+                    if (
+                        e.target.tagName === "INPUT" ||
+                        e.target.tagName === "TEXTAREA"
+                    )
+                        return;
+                    if (["F5", "F12"].includes(e.key)) return;
+                    e.preventDefault();
+                    send({ type: "keydown", key: e.key });
+                });
+
+                document.addEventListener("keyup", (e) => {
+                    if (
+                        e.target.tagName === "INPUT" ||
+                        e.target.tagName === "TEXTAREA"
+                    )
+                        return;
+                    if (["F5", "F12"].includes(e.key)) return;
+                    e.preventDefault();
+                    send({ type: "keyup", key: e.key });
+                });
+
+                let latestBitmap = null;
+
+                function renderFrame(blob) {
+                    createImageBitmap(blob)
+                        .then(function (bitmap) {
+                            if (latestBitmap) latestBitmap.close();
+                            latestBitmap = bitmap;
+                            drawBitmap(bitmap);
+                        })
+                        .catch(function () {});
+                }
+
+                function drawBitmap(bitmap) {
+                    if (!bitmap) return;
+
+                    if (zoomed) {
+                        const scaleX = bitmap.width / screenW;
+                        const scaleY = bitmap.height / screenH;
+                        const sx = zoomSrcX * scaleX;
+                        const sy = zoomSrcY * scaleY;
+                        const sw = zoomSrcW * scaleX;
+                        const sh = zoomSrcH * scaleY;
+
+                        const cw = Math.round(zoomSrcW);
+                        const ch = Math.round(zoomSrcH);
+
+                        if (canvas.width !== cw || canvas.height !== ch) {
+                            canvas.width = cw;
+                            canvas.height = ch;
+                        }
+                        ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, cw, ch);
+                    } else {
+                        if (
+                            canvas.width !== bitmap.width ||
+                            canvas.height !== bitmap.height
+                        ) {
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                        }
+                        ctx.drawImage(bitmap, 0, 0);
+                    }
+                }
+
+                function connect() {
+                    const proto =
+                        location.protocol === "https:" ? "wss:" : "ws:";
+                    ws = new WebSocket(`${proto}//${location.host}/ws`);
+                    ws.binaryType = "blob";
+
+                    ws.onopen = () => {
+                        connected = true;
+                        showStatus("Connected");
+                    };
+
+                    ws.onmessage = (event) => {
+                        if (typeof event.data === "string") {
+                            try {
+                                const msg = JSON.parse(event.data);
+                                if (msg.type === "info") {
+                                    screenW = msg.width;
+                                    screenH = msg.height;
+                                    updateAspectRatio();
+                                    showStatus(`Screen: ${screenW}x${screenH}`);
+                                }
+                            } catch (e) {}
+                        } else {
+                            renderFrame(event.data);
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        connected = false;
+                        showStatus("Disconnected. Reconnecting...");
+                        setTimeout(connect, 2000);
+                    };
+
+                    ws.onerror = () => ws.close();
+                }
+
+                setInterval(() => {
+                    send({ type: "ping" });
+                }, 30000);
+
+                connect();
+            })();
+        </script>
+    </body>
+</html>

@@ -109,7 +109,37 @@ const toolSchemas = [
         },
         required: ["fileName"]
       }
-    }
+    },
+    {
+        name: "openApplication",
+        description: "Opens or launches ANY application installed on the Windows laptop by name. Works with all app types: PATH apps (chrome, notepad, calc), desktop apps (Telegram, Discord, Obsidian, Spotify, Figma), UWP/Store apps (WhatsApp, Calculator, Camera), and any other installed application visible in the Start Menu. Just pass the common app name. Also accepts a full executable path if needed.",
+        parameters: {
+            type: "OBJECT",
+            properties: {
+                appName: { 
+                    type: "STRING", 
+                    description: "The name of the application to launch (e.g. 'chrome', 'telegram', 'whatsapp', 'discord', 'obsidian', 'spotify', 'notepad', 'code', 'calc'). Can also be a full .exe path." 
+                }
+            },
+            required: ["appName"]
+        }
+    },
+    {
+        name: "startRemoteDesktop",
+        description: "Starts a live remote desktop streaming session. Captures the PC screen in real-time and streams it to a web page accessible from the user's phone browser. Also accepts touch, mouse, and keyboard input from the phone to control the PC. Uses a Cloudflare Tunnel to make it accessible over the internet. Returns a public URL the user can open on their phone. Only one session can be active at a time. Auto-stops after 5 minutes of inactivity.",
+        parameters: {
+            type: "OBJECT",
+            properties: {}
+        }
+    },
+    {
+        name: "stopRemoteDesktop",
+        description: "Stops the currently running remote desktop streaming session. Closes the WebSocket server, disconnects any connected clients, and shuts down the Cloudflare Tunnel. Use this when the user says 'stop streaming', 'close remote desktop', 'end screen share', or similar.",
+        parameters: {
+            type: "OBJECT",
+            properties: {}
+        }
+    },
 ];
 
 module.exports = { toolsMapping, toolSchemas };
