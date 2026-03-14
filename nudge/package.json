@@ -4,8 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "dev": "node index.js",
+    "test": "node testTools/testGetFiles.js"
   },
+  "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/genai": "^1.45.0",
+    "dotenv": "^17.3.1",
+    "fast-glob": "^3.3.3",
+    "node-telegram-bot-api": "^0.67.0",
+    "systeminformation": "^5.31.4"
+  }
 }
