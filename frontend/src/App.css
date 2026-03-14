@@ -1,0 +1,42 @@
+/* App Css Page */
+.app-layout {
+  min-height: 100vh;
+}
+
+.main-content {
+  padding: 96px 40px 40px;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Background dot grid */
+.main-content::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle, rgba(91,159,222,0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* page transition */
+.page-wrapper {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 88px 20px 32px;
+  }
+}
