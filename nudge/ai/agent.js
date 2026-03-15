@@ -224,7 +224,16 @@ async function processMessage(userMessage, chatHistory = []) {
             }
 
             if (result?.__isRawDataResponse && result?.paths) {
-                supplementalRawData.push(result.paths.join('\n'));
+                if (Array.isArray(result.paths)) {
+                    const numbered = result.paths.map((p, i) => `${i + 1}. ${p}`).join('\n');
+                    supplementalRawData.push(numbered);
+                } else if (typeof result.paths === 'string') {
+                    const partsArr = result.paths.split(/\r?\n/).filter(Boolean);
+                    const numbered = partsArr.map((p, i) => `${i + 1}. ${p}`).join('\n');
+                    supplementalRawData.push(numbered);
+                } else {
+                    supplementalRawData.push(String(result.paths));
+                }
             }
         }
 

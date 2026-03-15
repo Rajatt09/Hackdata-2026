@@ -518,23 +518,21 @@ async function findFilesByName(fileName, searchRoot = null) {
             });
         }
 
-        const responseData = { results: safePaths };
-
-        if (safePaths.length > 30) {
-            responseData.warning = `Found ${safePaths.length} safe files. Showing top 30 to save space.`;
-            responseData.results = safePaths.slice(0, 30);
-        }
-
-        if (safePaths.length === 0) {
-            return JSON.stringify({ error: `No files found matching '${fileName}'.` });
-        }
+        const responseData = {
+            __isRawDataResponse: true,
+            paths: safePaths.length > 30 ? safePaths.slice(0, 30) : safePaths,
+            text: safePaths.length > 30
+                ? `Found ${safePaths.length} safe files. Showing top 30 to save space.`
+                : `Found ${safePaths.length} safe files.`,
+            totalCount: safePaths.length
+        };
 
         if (sensitiveCount > 0) {
             responseData.warning = (responseData.warning ? responseData.warning + " " : "") +
                 `Also hid ${sensitiveCount} match(es) located in sensitive system directories.`;
         }
 
-        return JSON.stringify(responseData);
+        return responseData;
     } catch (err) {
         return `Error searching for file: ${err.message}`;
     }
