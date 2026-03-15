@@ -17,13 +17,11 @@ if (!token) {
     console.error("Error: BOT_TOKEN is not set in the .env file.");
     process.exit(1);
 }
-// yo
+
 const bot = new TelegramBot(token, { polling: true });
 
-// In-memory chat history per chat (keyed by chatId)
 const chatHistories = new Map();
 
-// Pending system commands awaiting inline keyboard confirmation (keyed by chatId)
 const pendingCommands = new Map();
 
 /* ---------------- FILE SENDER ---------------- */
@@ -59,13 +57,10 @@ bot.on('message', async (msg) => {
         return;
     }
 
-    // Authorization check omitted as per existing code...
-
     bot.sendChatAction(chatId, 'typing').catch(() => { });
 
     try {
         console.log(`[Step 1] Retrieving chat history...`);
-        // Get or create chat history for this chat
         if (!chatHistories.has(chatId)) {
             console.log(`[History] Creating new history for chatId: ${chatId}`);
             chatHistories.set(chatId, []);
@@ -88,7 +83,6 @@ bot.on('message', async (msg) => {
             const cmd = result.pendingCommand;
             console.log(`[SysCmd] Pending command detected: "${cmd.command}"`);
 
-            // Store the command for this chat
             pendingCommands.set(chatId, cmd);
 
             const confirmText =
@@ -108,7 +102,6 @@ bot.on('message', async (msg) => {
             });
             console.log(`[SysCmd] Inline keyboard sent. Waiting for user confirmation.`);
 
-            // Update history and return early — don't send any other text/files yet
             history.push({ role: 'user', text: msg.text });
             history.push({ role: 'bot', text: `[Awaiting confirmation] ${cmd.command}` });
             while (history.length > 20) history.shift();
@@ -136,13 +129,11 @@ bot.on('message', async (msg) => {
         /* -------- UPDATE CHAT HISTORY -------- */
 
         console.log(`[Step 4] Updating chat history...`);
-        // Store the user message and bot response in history
         history.push({ role: 'user', text: msg.text });
         if (result.text) {
             history.push({ role: 'bot', text: result.text });
         }
 
-        // Keep only the last 20 messages to avoid memory bloat
         while (history.length > 20) {
             history.shift();
         }
@@ -184,7 +175,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
     console.log(`\n--- [Callback] Received: "${data}" from chatId: ${chatId} ---`);
 
-    // Acknowledge the button press immediately (removes loading spinner)
     await bot.answerCallbackQuery(callbackQuery.id);
 
     if (data === 'syscmd_yes') {
@@ -204,7 +194,6 @@ bot.on('callback_query', async (callbackQuery) => {
             const output = await runSysTerminalCommands(cmd.command);
             console.log(`[SysCmd] Execution complete. Output length: ${output.length}`);
             
-            // Send raw output in chunks (no refurbishment as requested)
             const header = `Result for: \`${cmd.command}\`\n\n`;
             await sendMessageChunks(chatId, header + output);
         } catch (err) {

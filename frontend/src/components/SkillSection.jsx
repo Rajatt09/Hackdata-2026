@@ -34,14 +34,12 @@ export default function SkillsSection() {
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-16">
 
-            {/* Left label */}
             <div className="lg:col-span-1 text-left">
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-500 mb-4">Architecture</h2>
               <h3 className="text-4xl font-black text-gray-900 italic mb-6">How Nudge Thinks.</h3>
               <p className="text-gray-500 leading-relaxed">Systematic translation of intent into system-level operations.</p>
             </div>
 
-            {/* Cards */}
             <div className="lg:col-span-2 grid sm:grid-cols-2 gap-6">
               {workflow.map((item, i) => (
                 <div
@@ -51,11 +49,9 @@ export default function SkillsSection() {
                              shadow-sm hover:shadow-2xl hover:shadow-black/15
                              transition-all duration-300 overflow-hidden"
                 >
-                  {/* SVG beam overlay */}
                   <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
                     <svg className="w-full h-full" style={{ overflow: 'visible' }}>
                       <defs>
-                        {/* Unique gradient ID per card to avoid SVG ID collisions */}
                         <linearGradient id={`beam-grad-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
                           <stop offset="0%"   stopColor="#10b981" stopOpacity="0" />
                           <stop offset="30%"  stopColor="#10b981" stopOpacity="1" />
@@ -76,7 +72,6 @@ export default function SkillsSection() {
                     </svg>
                   </div>
 
-                  {/* Content */}
                   <div className="relative z-10 p-8 h-full">
                     <div className="flex justify-between items-center mb-6">
                       <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-emerald-50 transition-colors duration-300">

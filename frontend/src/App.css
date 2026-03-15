@@ -1,4 +1,4 @@
-/* App Css Page */
+
 .app-layout {
   min-height: 100vh;
 }
@@ -11,7 +11,6 @@
   position: relative;
 }
 
-/* Background dot grid */
 .main-content::before {
   content: '';
   position: fixed;
@@ -30,7 +29,6 @@
   z-index: 1;
 }
 
-/* page transition */
 .page-wrapper {
   animation: fadeIn 0.4s ease forwards;
 }

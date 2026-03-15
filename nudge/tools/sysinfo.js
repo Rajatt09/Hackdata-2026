@@ -3,12 +3,6 @@ const si = require('systeminformation');
 const os = require('os');
 const https = require('https');
 
-/**
- * Converts a data object/array into clean, human-readable text for Telegram.
- * @param {any} data - The data to format.
- * @param {number} indent - Current indentation level.
- * @returns {string} Formatted text string.
- */
 function formatDataToText(data, indent = 0) {
     const prefix = '  '.repeat(indent);
 
@@ -42,16 +36,9 @@ function formatDataToText(data, indent = 0) {
     return `${prefix}${String(data)}`;
 }
 
-/**
- * Executes a system/terminal command safely with a timeout.
- * The actual execution is gated behind an inline-keyboard confirmation in index.js.
- *
- * @param {string} command - The exact CLI command to execute.
- * @returns {Promise<string>} The stdout/stderr output of the command.
- */
 function runSysTerminalCommands(command) {
     return new Promise((resolve) => {
-        const TIMEOUT_MS = 15000; // 15-second safety timeout
+        const TIMEOUT_MS = 15000;
 
         exec(command, { timeout: TIMEOUT_MS }, (error, stdout, stderr) => {
             let output = '';

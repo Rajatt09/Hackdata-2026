@@ -2,19 +2,6 @@ const { exec, execSync } = require('child_process');
 const { startRemoteDesktop } = require('./remotedesktop');
 const os = require('os');
 
-/**
- * Attempts to open an application on the host Windows laptop.
- * Uses a multi-strategy approach to find and launch apps:
- *
- *   Strategy 1: Windows `start` command (works for PATH apps like chrome, notepad, calc)
- *   Strategy 2: PowerShell `Get-StartApps` lookup + `shell:AppsFolder` launch
- *               (works for ALL installed apps: UWP/Store apps, Squirrel-installed apps,
- *                user-installed desktop apps like Telegram, WhatsApp, Obsidian, Discord, etc.)
- *   Strategy 3: Direct path launch (if the user provides a full .exe path)
- *
- * @param {string} appName The name of the application to open (e.g., "chrome", "telegram", "whatsapp").
- * @returns {Promise<string>} Result message.
- */
 function openApplication(appName) {
     return new Promise((resolve) => {
         if (!appName || appName.trim().length === 0) {
@@ -27,14 +14,12 @@ function openApplication(appName) {
         const handleSuccess = async (launchedName) => {
             try {
                 const rdResult = await startRemoteDesktop();
-                // Return just the message text as requested
                 resolve(rdResult.message || `Remote desktop started. URL: ${rdResult.url}`);
             } catch (err) {
                 resolve(`App launched but failed to start remote desktop: ${err.message}`);
             }
         };
 
-        // If the user provided a full path (e.g., "C:\...\app.exe"), launch it directly
         if (trimmed.includes('\\') || trimmed.includes('/')) {
             const command = `start "" "${trimmed}"`;
             exec(command, (error) => {
@@ -47,7 +32,6 @@ function openApplication(appName) {
             return;
         }
 
-        // Strategy 1: Try the simple `start` command first (fast, works for PATH apps)
         const startCommand = `start "" "${trimmed}"`;
         exec(startCommand, (startError) => {
             if (!startError) {
@@ -57,7 +41,6 @@ function openApplication(appName) {
 
             console.log(`[App] 'start' command failed for '${trimmed}', trying Get-StartApps lookup...`);
 
-            // Strategy 2: Search the Windows Start Menu apps database via PowerShell.
             const psScript = `
 $ErrorActionPreference = 'SilentlyContinue'
 $apps = Get-StartApps | Where-Object { $_.Name -like '*${trimmed.replace(/'/g, "''")}*' }

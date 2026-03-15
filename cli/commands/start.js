@@ -2,17 +2,16 @@ const { spawn } = require("child_process");
 const path = require("path");
 const loadUI = require("../utils/ui");
 const delay = require("../utils/delay");
-const { updateState, getState } = require("../utils/stateManager"); // Import getState
+const { updateState, getState } = require("../utils/stateManager"); 
 
 module.exports = async function start() {
   const { chalk, ora } = await loadUI();
   
-  // 1. Signature Check: Check if agent is already running
   const state = getState();
   if (state && state.running) {
     console.log(chalk.yellow(`⚠ Nudge agent is already running (Started at: ${state.startedAt})`));
     console.log(chalk.gray("Run `nudge stop` if you want to restart it."));
-    return; // Exit early
+    return; 
   }
 
   const spinner = ora("Starting Nudge agent...").start();
@@ -35,12 +34,9 @@ module.exports = async function start() {
 
     let hasFailed = false;
 
-    // Listen for immediate crashes (like your DLL error)
     child.on('exit', (code) => {
-      // code 0 is normal exit, null happens if it was killed manually
       if (code !== 0 && code !== null) {
         hasFailed = true;
-        // Check if spinner is still spinning before calling fail
         if (spinner.isSpinning) {
           spinner.fail(chalk.red(`Nudge agent failed to start (Exit code: ${code})`));
         }
@@ -54,7 +50,6 @@ module.exports = async function start() {
       console.error(err);
     });
 
-    // Wait a moment to see if the process stays alive/crashes
     await delay(2000); 
 
     if (!hasFailed) {

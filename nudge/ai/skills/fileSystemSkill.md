@@ -8,7 +8,7 @@ Before taking any action, determine which tool is best suited for the user's req
 *   **`findFilesByName`**: use this when the user mentions the name of a file name to be searched for. Now this function accepts the file name as a parameter and returns a list of file paths of that file in the entire computer.
     *   *Example*: "Find my resume", "Get the config file".
 *   **`listFiles`**: Use this when the user wants to see what's inside a folder. You only need the folder name or a sub-path — the tool will search the entire system for matching folders.
-    *   If multiple folders match, the tool returns a list of paths for the user to choose from.
+    *   If multiple folders match, the tool returns a list of paths for the user to choose from. All the paths must be listed on new lines and should also have a serial number prceeding them.
     *   If exactly one folder matches, the tool returns its contents directly.
     *   *Example*: "List files in Documents", "What's in the Projects folder?", "Show me harshal/Downloads".
 *   **`sendFile`**: Use this when the user wants to receive a specific **file** (not a folder). Requires an absolute file path.

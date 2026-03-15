@@ -22,10 +22,8 @@ export default function AboutSection({ desktopImg, mobileImg }) {
 
   return (
     <section className="py-24 px-6 max-w-7xl mx-auto relative z-10 content-layer">
-      {/* Changed lg:grid-cols-2 to a custom 5:7 ratio to make the right side bigger */}
       <div className="grid lg:grid-cols-[5fr_7fr] gap-16 items-center">
         
-        {/* Left Side: Content */}
         <div className="space-y-6 text-left">
           <h2 className="text-4xl font-bold tracking-tight text-black">
             Total control. <span className="text-gray-400">Zero network limits.</span>
@@ -46,13 +44,9 @@ export default function AboutSection({ desktopImg, mobileImg }) {
           </ul>
         </div>
 
-        {/* Right Side: Overlapping Devices */}
-        {/* Added pr-16 and pb-16 to allow space for the phone to hang off the edge */}
         <div className="relative pt-10 pb-16 pr-16">
           
-          {/* Big Laptop Screen */}
           <div className="relative z-0 group">
-            {/* Added a subtle scale up to the laptop to make it feel "Big" */}
             <div className="absolute -inset-1 bg-gradient-to-r from-gray-200 to-gray-100 rounded-2xl blur opacity-20" />
             <div className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.01]">
               <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex gap-1.5">
@@ -68,8 +62,6 @@ export default function AboutSection({ desktopImg, mobileImg }) {
             </div>
           </div>
 
-          {/* Small Mobile Screen (Bottom Right Overlap) */}
-          {/* Adjusted to -bottom-10 and -right-4 to "break" the laptop border nicely */}
           <div className="absolute -bottom-10 -right-4 md:-right-8 z-20 w-[140px] md:w-[210px] group/phone">
             <div className="relative border-gray-900 bg-gray-900 border-[8px] md:border-[12px] rounded-[2.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] transform group-hover/phone:-translate-y-3 transition-all duration-500">
               <div className="w-16 h-4 bg-gray-900 top-0 left-1/2 -translate-x-1/2 absolute rounded-b-2xl z-30" />

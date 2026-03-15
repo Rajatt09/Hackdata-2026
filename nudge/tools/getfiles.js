@@ -3,11 +3,6 @@ const path = require('path');
 const fg = require('fast-glob');
 const os = require('os');
 
-// ==========================================
-// CONFIGURATION & GUARDRAILS
-// ==========================================
-
-// 1. Sensitive Directories (Paths that require user confirmation)
 const SENSITIVE_DIRECTORIES = os.platform() === 'win32'
     ? [
         'C:\\Windows',
@@ -33,7 +28,6 @@ const SENSITIVE_DIRECTORIES = os.platform() === 'win32'
         path.join(os.homedir(), '.bash_history')
     ];
 
-// 2. Directories to completely ignore during search (platform-aware)
 const GLOBAL_IGNORED_PATTERNS = os.platform() === 'win32'
     ? [
         '**/node_modules/**',
@@ -57,22 +51,12 @@ const GLOBAL_IGNORED_PATTERNS = os.platform() === 'win32'
         '**/temp/**'
     ];
 
-// 3. Max Telegram File Size (50MB limit)
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
-
-/**
- * Normalizes a path by stripping redundant prefixes and resolving it canonical.
- * Handles macOS specific /Volumes/Macintosh HD aliases.
- */
 function normalizePath(p) {
     if (!p) return '';
     let normalized = p.trim().replace(/\\/g, '/');
     
-    // macOS Specific: Strip redundant /Volumes/Macintosh HD prefix
     if (os.platform() === 'darwin') {
         const volPrefix = '/Volumes/Macintosh HD';
         if (normalized.startsWith(volPrefix)) {
@@ -83,10 +67,8 @@ function normalizePath(p) {
         if (normalized === '') normalized = '/';
     }
 
-    // Attempt to resolve it
     let resolved = path.resolve(normalized);
-    
-    // If it doesn't exist as resolved, try relative to home dir if it looks like a sub-path
+
     if (!fs.existsSync(resolved) && !path.isAbsolute(normalized)) {
         const homeResolved = path.join(os.homedir(), normalized);
         if (fs.existsSync(homeResolved)) {
@@ -96,12 +78,7 @@ function normalizePath(p) {
 
     return resolved;
 }
-// UTILITY FUNCTIONS
-// ==========================================
 
-/**
- * Dynamically finds available drives on Windows (C:\, D:\) or root (/) on Unix.
- */
 function getSystemRoots() {
     if (os.platform() === 'win32') {
         const drives = [];
@@ -114,7 +91,6 @@ function getSystemRoots() {
         return drives.length > 0 ? drives : ['C:\\'];
     }
 
-    // macOS / Unix
     const roots = ['/'];
     try {
         if (fs.existsSync('/Volumes')) {
@@ -122,7 +98,6 @@ function getSystemRoots() {
             volumes.forEach(v => {
                 const vPath = path.join('/Volumes', v);
                 try {
-                    // Skip symlinks that point back to '/' (e.g. "Macintosh HD" -> "/")
                     if (fs.lstatSync(vPath).isSymbolicLink()) {
                         const target = fs.readlinkSync(vPath);
                         if (target === '/') return;
@@ -137,9 +112,6 @@ function getSystemRoots() {
     return roots;
 }
 
-/**
- * Checks if a requested path falls within a defined sensitive directory.
- */
 function isPathSensitive(requestedPath) {
     const normalizedRequest = path.resolve(requestedPath).toLowerCase();
     return SENSITIVE_DIRECTORIES.some(sensitivePath => {
@@ -148,27 +120,15 @@ function isPathSensitive(requestedPath) {
     });
 }
 
-// ==========================================
-// CORE FUNCTIONS
-// ==========================================
 
-/**
- * Searches for folders matching a name or sub-path across all system drives/roots.
- * If multiple matching folders are found, returns the list of paths.
- * If exactly one match is found, returns the contents of that folder.
- * @param {string} folderName The folder name or sub-path to search for (e.g., 'Documents', 'harshal/Documents').
- * @returns {Promise<string>} The search results or folder contents.
- */
 async function listFiles(folderName) {
     try {
         if (!folderName || folderName.trim() === '') {
             return 'Error: Please provide a folder name or sub-path to search for.';
         }
 
-        // Normalize the input
         const normalizedInput = folderName.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 
-        // 1. Check if the input is already an absolute path
         const absolutePath = normalizePath(folderName);
         if (fs.existsSync(absolutePath) && fs.lstatSync(absolutePath).isDirectory()) {
             console.log(`[listFiles] Input is a valid absolute path: ${absolutePath}`);
@@ -176,13 +136,11 @@ async function listFiles(folderName) {
                 return `Access Denied: The path '${absolutePath}' is in a sensitive area. Privacy concerns prevent access.`;
             }
             
-            // Canonicalize the absolute path to be safe
             let finalPath = absolutePath;
             try {
                 finalPath = fs.realpathSync(absolutePath);
             } catch (e) {}
             
-            // Get files and sort by mtime descending
             const files = fs.readdirSync(absolutePath).map(file => {
                 const filePath = path.join(absolutePath, file);
                 try {
@@ -211,7 +169,6 @@ async function listFiles(folderName) {
             if (safeBase.length === 2 && safeBase[1] === ':') safeBase += '/';
             if (safeBase === '') safeBase = '/';
 
-            // Build search pattern: match any path ending with the normalized input
             let patternsToSearch = [];
 
             try {
@@ -220,12 +177,11 @@ async function listFiles(folderName) {
                     for (const item of topLevelItems) {
                         if (item.isDirectory()) {
                             if (!blockedRootFolders.includes(item.name.toLowerCase())) {
-                                // Match paths ending with internal input
+                               
                                 patternsToSearch.push(`${safeBase}${item.name}/**/${normalizedInput}`);
                             }
                         }
                     }
-                    // Explicitly include home dir
                     const homeDir = os.homedir().replace(/\\/g, '/');
                     patternsToSearch.push(`${homeDir}/**/${normalizedInput}`);
                 } else {
@@ -250,18 +206,15 @@ async function listFiles(folderName) {
             allFoundPaths.push(...entries);
         }
 
-        // Filter out sensitive paths and canonicalize
         const safePathsSet = new Set();
         allFoundPaths.forEach(p => {
             try {
-                // Use realpathSync to resolve symlinks and unify paths (e.g. resolve /Volumes/Macintosh HD to /)
                 const realP = fs.realpathSync(p);
                 const normalizedP = path.normalize(realP);
                 if (!isPathSensitive(normalizedP)) {
                     safePathsSet.add(normalizedP);
                 }
             } catch (e) {
-                // If realpathSync fails (e.g. permission), fallback to normalized original if not sensitive
                 const normalizedP = path.normalize(p);
                 if (!isPathSensitive(normalizedP)) {
                     safePathsSet.add(normalizedP);
@@ -271,7 +224,6 @@ async function listFiles(folderName) {
 
         const safePaths = Array.from(safePathsSet);
 
-        // Sort safePaths by modification time descending
         const pathsWithTime = safePaths.map(p => {
             try {
                 return { path: p, mtime: fs.statSync(p).mtimeMs };
@@ -286,7 +238,6 @@ async function listFiles(folderName) {
             return `No folders found matching '${normalizedInput}'.`;
         }
 
-        // Single match: return the contents of that folder
         if (sortedSafePaths.length === 1) {
             const folderPath = sortedSafePaths[0];
             const files = fs.readdirSync(folderPath).map(file => {
@@ -305,7 +256,6 @@ async function listFiles(folderName) {
             return `Contents of ${folderPath} (Newest first):\n${sortedFileNames.join('\n')}`;
         }
 
-        // Multiple matches: return structured data for agent.js bypass
         const displayLimit = 30;
         const displayPaths = sortedSafePaths.slice(0, displayLimit);
         let summaryText = `I found ${sortedSafePaths.length} folders mapping to '${normalizedInput}' (Ordered by most recently updated).`;
@@ -327,12 +277,6 @@ async function listFiles(folderName) {
     }
 }
 
-/**
- * Instructs the bot to upload a file to Telegram.
- * @param {string} filePath The requested file path.
- * @param {boolean} userConfirmed Whether the user explicitly approved access.
- * @returns {object|string} Instruction object, confirmation request, or error.
- */
 async function sendFile(filePath) {
     try {
         const fullPath = normalizePath(filePath);
@@ -346,7 +290,6 @@ async function sendFile(filePath) {
         let finalPath = fullPath;
         const stats = fs.statSync(fullPath);
 
-        // sendFile only handles files — redirect directories to zipFolder
         if (stats.isDirectory()) {
             return await zipFolder(filePath);
         }
@@ -368,21 +311,12 @@ async function sendFile(filePath) {
     }
 }
 
-/**
- * Zips a folder and returns it for sending via Telegram.
- * If folderPath is not absolute or doesn't exist directly, searches the system.
- * If multiple matches found, returns list for user selection (max 30).
- * If single match, zips and sends it directly.
- * @param {string} folderPath The path or name of the folder to zip.
- * @returns {object|string} File response object, selection list, or error message.
- */
 async function zipFolder(folderPath) {
     try {
         if (!folderPath || folderPath.trim() === '') {
             return 'Error: Please provide a folder name or path to zip.';
         }
 
-        // 1. Try as a direct/absolute path first
         const directPath = normalizePath(folderPath);
         if (fs.existsSync(directPath) && fs.lstatSync(directPath).isDirectory()) {
             if (isPathSensitive(directPath)) {
@@ -391,7 +325,6 @@ async function zipFolder(folderPath) {
             return _createZip(directPath);
         }
 
-        // 2. Not a direct path — search the system for matching folders
         const normalizedInput = folderPath.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
         const rootsToSearch = getSystemRoots();
         let allFoundPaths = [];
@@ -435,7 +368,6 @@ async function zipFolder(folderPath) {
             allFoundPaths.push(...entries);
         }
 
-        // Deduplicate and filter sensitive paths
         const safePathsSet = new Set();
         allFoundPaths.forEach(p => {
             try {
@@ -447,7 +379,6 @@ async function zipFolder(folderPath) {
             }
         });
 
-        // Sort by mtime descending
         const safePaths = Array.from(safePathsSet);
         const sorted = safePaths.map(p => {
             try { return { path: p, mtime: fs.statSync(p).mtimeMs }; }
@@ -458,12 +389,10 @@ async function zipFolder(folderPath) {
             return `No folders found matching '${normalizedInput}'.`;
         }
 
-        // Single match — zip it directly
         if (sorted.length === 1) {
             return _createZip(sorted[0]);
         }
 
-        // Multiple matches — return list for user selection (max 30)
         const displayLimit = 30;
         const displayPaths = sorted.slice(0, displayLimit);
         let summaryText = `I found ${sorted.length} folders matching '${normalizedInput}' (ordered by most recently updated).`;
@@ -484,9 +413,6 @@ async function zipFolder(folderPath) {
     }
 }
 
-/**
- * Internal helper: creates a zip from a confirmed directory path.
- */
 function _createZip(fullPath) {
     const tempDir = os.tmpdir();
     const zipFileName = `${path.basename(fullPath)}_${Date.now()}.zip`;
@@ -517,13 +443,6 @@ function _createZip(fullPath) {
 }
 
 
-/**
- * Searches the entire system or a specified root for a file.
- * @param {string} fileName The name of the file to search for.
- * @param {string} [searchRoot] Optional. A specific drive (e.g., 'D:\'). Defaults to whole system.
- * @param {boolean} userConfirmed Whether the user explicitly approved a sensitive search root.
- * @returns {Promise<string>} A JSON stringified array of paths, or a confirmation request.
- */
 async function findFilesByName(fileName, searchRoot = null) {
     try {
         let rootsToSearch = searchRoot ? [normalizePath(searchRoot)] : getSystemRoots();
@@ -543,7 +462,6 @@ async function findFilesByName(fileName, searchRoot = null) {
             if (safeBase.length === 2 && safeBase[1] === ':') safeBase += '/';
             if (safeBase === '') safeBase = '/';
 
-            // Build search patterns
             let patternsToSearch = [];
 
             try {
@@ -556,7 +474,6 @@ async function findFilesByName(fileName, searchRoot = null) {
                             }
                         }
                     }
-                    // Explicitly include home dir if we are scanning root
                     if (!searchRoot) {
                         const homeDir = os.homedir().replace(/\\/g, '/');
                         patternsToSearch.push(`${homeDir}/**/*${fileName}*`);
@@ -583,8 +500,6 @@ async function findFilesByName(fileName, searchRoot = null) {
             allFoundPaths.push(...entries);
         }
 
-        // Filter out any paths that sneak into sensitive directories
-        // (e.g. C:/Users/All Users which is a junction to C:/ProgramData)
         let safePaths = [];
         let sensitiveCount = 0;
 
@@ -597,7 +512,6 @@ async function findFilesByName(fileName, searchRoot = null) {
             }
         }
 
-        // If we found sensitive files but no safe ones, politely decline
         if (safePaths.length === 0 && sensitiveCount > 0) {
             return JSON.stringify({
                 error: `Privacy Block: Found match(es) for '${fileName}', but they are located inside sensitive system directories. Access is denied.`

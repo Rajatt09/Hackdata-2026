@@ -12,7 +12,6 @@ module.exports = async function auth() {
     validate: value => value.length < 5 ? "Token is too short to be valid" : true
   });
 
-  // Handle Ctrl+C / Cancel
   if (!response.token) {
     console.log(chalk.yellow("\nAuth update cancelled."));
     return;
@@ -21,15 +20,9 @@ module.exports = async function auth() {
   const spinner = ora("Updating authentication credentials...").start();
 
   try {
-    // We update the primary keys used by the agent
-    // Based on your init.js, you used GEMINI_API_KEY and BOT_TOKEN
     updateEnv("GEMINI_API_KEY", response.token);
-    // updateEnv("NUDGE_API_KEY", response.token); // Keeping this for backward compatibility
 
-    // If this is specifically for the Telegram/Discord bot token:
-    // updateEnv("BOT_TOKEN", response.token);
-
-    await new Promise(resolve => setTimeout(resolve, 600)); // Smooth UX delay
+    await new Promise(resolve => setTimeout(resolve, 600)); 
     
     spinner.succeed(chalk.green("Authentication token updated successfully"));
     console.log(chalk.gray("Note: You may need to restart the agent for changes to take effect."));

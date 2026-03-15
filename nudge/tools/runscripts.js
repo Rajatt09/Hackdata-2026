@@ -1,10 +1,5 @@
 const { exec } = require('child_process');
 
-/**
- * Executes a shell command or script on the system.
- * @param {string} command The command to run.
- * @returns {Promise<string>} The output of the command.
- */
 function executeScript(command) {
     return new Promise((resolve) => {
         exec(command, (error, stdout, stderr) => {

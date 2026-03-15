@@ -8,7 +8,6 @@ export default function Navbar() {
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 w-fit">
       
-      {/* 1. The Main Pill Navbar */}
       <nav className="flex items-center gap-8 px-6 h-12 bg-white/70 backdrop-blur-xl border border-gray-200 rounded-full shadow-sm">
         <Link 
           to="/" 
@@ -33,12 +32,10 @@ export default function Navbar() {
         </Link>
       </nav>
 
-      {/* 2. The Detached GitHub Button */}
       <a 
-        href="https://github.com/your-username/nudge" 
+        href="https://github.com/Rajatt09/Hackdata-2026" 
         target="_blank" 
         rel="noopener noreferrer"
-        /* h-12 matches the height of the white navbar pill exactly */
         className="h-12 aspect-square flex items-center justify-center bg-black rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 group"
         aria-label="View on GitHub"
       >

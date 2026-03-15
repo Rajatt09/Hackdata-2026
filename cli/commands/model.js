@@ -6,7 +6,6 @@ const { updateEnv } = require("../utils/envManager");
 module.exports = async function model() {
   const { chalk, ora } = await loadUI();
 
-  // Map choices from your JSON data
   const modelChoices = models.models.map((m) => ({
     title: `${m.id} ${chalk.gray(`(${m.provider})`)}`,
     value: m.id
@@ -20,7 +19,6 @@ module.exports = async function model() {
     initial: 0
   });
 
-  // Handle case where user cancels the prompt (Ctrl+C)
   if (!response.model) {
     console.log(chalk.yellow("\nModel update cancelled."));
     return;
@@ -29,12 +27,9 @@ module.exports = async function model() {
   const spinner = ora("Updating configuration...").start();
 
   try {
-    // We update both the runtime and the .env file
-    // Ensure the key matches what your 'start' script or 'nudge' folder expects
     updateEnv("MODEL_NAME", response.model);
-    // updateEnv("NUDGE_MODEL", response.model);
 
-    await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+    await new Promise(resolve => setTimeout(resolve, 500)); 
     
     spinner.succeed(chalk.green(`Successfully switched to ${response.model}`));
 

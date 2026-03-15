@@ -1,30 +1,4 @@
-// const readline = require("readline")
-// const updateEnv = require("../utils/updateEnv")
 
-// module.exports = function init() {
-
-//   const rl = readline.createInterface({
-//     input: process.stdin,
-//     output: process.stdout
-//   })
-
-//   rl.question("Enter API Key: ", (apiKey) => {
-
-//     rl.question("Select Model (gpt-4 / claude / gemini): ", (model) => {
-
-//       updateEnv("NUDGE_API_KEY", apiKey)
-//       updateEnv("NUDGE_MODEL", model)
-
-//       console.log("Environment configured successfully")
-
-//       rl.close()
-//     })
-
-//   })
-
-// }
-
-//Mock version
 const prompts = require("prompts")
 const { execSync } = require("child_process");
 const loadUI = require("../utils/ui")
@@ -71,7 +45,7 @@ module.exports = async function init() {
     
     execSync("npm install", { 
       cwd: nudgePath, 
-      stdio: "inherit" // This shows the npm progress in your terminal
+      stdio: "inherit" 
     });
 
     spinner.succeed(chalk.green("Configuration saved"))

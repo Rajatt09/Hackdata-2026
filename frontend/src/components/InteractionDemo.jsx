@@ -12,7 +12,6 @@ export function InteractionDemo({ phoneImg, laptopImg = "" }) {
                 <div className="flex flex-col md:flex-row items-center justify-center gap-12">
                     <div className="flex-1">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">User Interface</p>
-                        {/* Pass the image inside the component tags */}
                         <MobileFrame>
                             <img src={phoneImg = "55f10441-27bb-400d-b0bd-e09c334b8afd.jpeg"} alt="Mobile" className="w-full h-full object-cover" />
                         </MobileFrame>
