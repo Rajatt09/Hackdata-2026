@@ -1,5 +1,6 @@
 {
   "running": false,
   "model": null,
-  "startedAt": null
+  "startedAt": null,
+  "pid": null
 }

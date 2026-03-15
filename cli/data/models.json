@@ -1,19 +1,11 @@
 {
   "models": [
     {
-      "id": "gpt-4o",
-      "provider": "openai"
+      "id": "gemini-3.1-flash-lite-preview",
+      "provider": "google"
     },
     {
-      "id": "gpt-4.1",
-      "provider": "openai"
-    },
-    {
-      "id": "claude-3-sonnet",
-      "provider": "anthropic"
-    },
-    {
-      "id": "gemini-1.5-pro",
+      "id": "gemini-2.5-flash",
       "provider": "google"
     }
   ]

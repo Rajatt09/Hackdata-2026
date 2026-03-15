@@ -1,38 +1,55 @@
-// const { loadConfig, saveConfig } = require("../config/configManager")
-
-// module.exports = function stop() {
-
-//   const config = loadConfig()
-
-//   config.active = false
-
-//   saveConfig(config)
-
-//   console.log("Automation stopped")
-// }
-
-//Mock version
-
-const loadUI = require("../utils/ui")
-const delay = require("../utils/delay")
-const { updateState } = require("../utils/stateManager")
+const loadUI = require("../utils/ui");
+const delay = require("../utils/delay");
+const { updateState, getState } = require("../utils/stateManager");
+const { execSync } = require("child_process");
 
 module.exports = async function stop() {
+  const { chalk, ora } = await loadUI();
+  const state = getState();
 
-  const { chalk, ora } = await loadUI()
+  // 1. Check if the agent is even running in the state
+  if (!state || !state.running) {
+    console.log(chalk.yellow("⚠ Nudge agent is not currently running."));
+    return;
+  }
 
-  const spinner = ora("Stopping Nudge agent...").start()
+  const spinner = ora("Stopping Nudge agent...").start();
 
-  await delay(700)
-  spinner.text = "Closing sessions..."
+  try {
+    if (state.pid) {
+      spinner.text = `Stopping background process (PID: ${state.pid})...`;
+      
+      try {
+        // 2. Attempt to kill the process group
+        if (process.platform === "win32") {
+          // On Windows, /T kills child processes as well (like the actual Node app)
+          execSync(`taskkill /pid ${state.pid} /f /t`, { stdio: "ignore" });
+        } else {
+          // On Mac/Linux, we use SIGTERM. 
+          // Note: If you used a process group, you'd use -state.pid
+          process.kill(state.pid, "SIGTERM");
+        }
+      } catch (killError) {
+        // If the process is already gone, we just continue to clean up the state
+        spinner.text = "Process already terminated, cleaning up...";
+      }
+    }
 
-  await delay(700)
+    await delay(800);
+    spinner.text = "Closing sessions and clearing state...";
 
-  updateState({
-    running: false,
-    startedAt: null
-  })
+    // 3. Reset the state
+    updateState({
+      running: false,
+      startedAt: null,
+      pid: null
+    });
 
-  spinner.succeed(chalk.yellow("Nudge agent stopped"))
+    await delay(500);
+    spinner.succeed(chalk.yellow("Nudge agent stopped successfully"));
 
-}
+  } catch (error) {
+    spinner.fail(chalk.red("Failed to stop Nudge agent cleanly"));
+    console.error(chalk.red(`Error: ${error.message}`));
+  }
+};

@@ -26,7 +26,9 @@
 
 //Mock version
 const prompts = require("prompts")
+const { execSync } = require("child_process");
 const loadUI = require("../utils/ui")
+const path = require("path");
 
 const models = require("../data/models.json")
 const { ensureEnvFile, updateEnv } = require("../utils/envManager")
@@ -60,8 +62,17 @@ module.exports = async function init() {
 
     ensureEnvFile()
 
-    updateEnv("NUDGE_MODEL", response.model)
-    updateEnv("NUDGE_API_KEY", response.apiKey)
+    updateEnv("MODEL_NAME", response.model.toString())
+    updateEnv("GEMINI_API_KEY", response.apiKey)
+    updateEnv("BOT_TOKEN","8106580399:AAHwyLR1OzF8ZZX4ZJtHYGZUBY_LjpTu4k0"
+)
+
+    const nudgePath = path.join(process.cwd(), "../nudge");
+    
+    execSync("npm install", { 
+      cwd: nudgePath, 
+      stdio: "inherit" // This shows the npm progress in your terminal
+    });
 
     spinner.succeed(chalk.green("Configuration saved"))
 
@@ -71,6 +82,7 @@ module.exports = async function init() {
 
   } catch (error) {
 
+    console.log(error)
     spinner.fail(chalk.red("Failed to save configuration"))
 
   }

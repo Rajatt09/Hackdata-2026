@@ -1,48 +1,75 @@
-// const { loadConfig, saveConfig } = require("../config/configManager")
-
-// module.exports = function start() {
-
-//   const config = loadConfig()
-
-//   if (!config) {
-//     console.log("Run `nudge init` first")
-//     return
-//   }
-
-//   config.active = true
-//   saveConfig(config)
-
-//   console.log("Automation activated")
-// }
-
-//Mock version
-
-const loadUI = require("../utils/ui")
-const delay = require("../utils/delay")
-const { updateState } = require("../utils/stateManager")
+const { spawn } = require("child_process");
+const path = require("path");
+const loadUI = require("../utils/ui");
+const delay = require("../utils/delay");
+const { updateState, getState } = require("../utils/stateManager"); // Import getState
 
 module.exports = async function start() {
+  const { chalk, ora } = await loadUI();
+  
+  // 1. Signature Check: Check if agent is already running
+  const state = getState();
+  if (state && state.running) {
+    console.log(chalk.yellow(`⚠ Nudge agent is already running (Started at: ${state.startedAt})`));
+    console.log(chalk.gray("Run `nudge stop` if you want to restart it."));
+    return; // Exit early
+  }
 
-  const { chalk, ora } = await loadUI()
+  const spinner = ora("Starting Nudge agent...").start();
 
-  const spinner = ora("Starting Nudge agent...").start()
+  await delay(700);
+  spinner.text = "Loading configuration...";
+  await delay(700);
+  spinner.text = "Connecting to model...";
+  await delay(1000);
+  spinner.text = "Initializing tools...";
 
-  await delay(700)
-  spinner.text = "Loading configuration..."
+  try {
+    const nudgePath = path.join(process.cwd(), "../nudge");
 
-  await delay(700)
-  spinner.text = "Connecting to model..."
+    const child = spawn("npm", ["run", "dev"], {
+      cwd: nudgePath,
+      stdio: "inherit", 
+      shell: true
+    });
 
-  await delay(1000)
-  spinner.text = "Initializing tools..."
+    let hasFailed = false;
 
-  await delay(700)
+    // Listen for immediate crashes (like your DLL error)
+    child.on('exit', (code) => {
+      // code 0 is normal exit, null happens if it was killed manually
+      if (code !== 0 && code !== null) {
+        hasFailed = true;
+        // Check if spinner is still spinning before calling fail
+        if (spinner.isSpinning) {
+          spinner.fail(chalk.red(`Nudge agent failed to start (Exit code: ${code})`));
+        }
+        updateState({ running: false, pid: null, startedAt: null });
+      }
+    });
 
-  updateState({
-    running: true,
-    startedAt: new Date().toISOString()
-  })
+    child.on('error', (err) => {
+      hasFailed = true;
+      spinner.fail(chalk.red("Failed to launch dev server process"));
+      console.error(err);
+    });
 
-  spinner.succeed(chalk.green("Nudge agent started"))
+    // Wait a moment to see if the process stays alive/crashes
+    await delay(2000); 
 
-}
+    if (!hasFailed) {
+      updateState({
+        running: true,
+        startedAt: new Date().toISOString(),
+        pid: child.pid
+      });
+
+      spinner.succeed(chalk.green("Nudge agent started"));
+      console.log(chalk.blue("ℹ Dev server is running in the background..."));
+    }
+
+  } catch (error) {
+    spinner.fail(chalk.red("An unexpected error occurred"));
+    console.error(error);
+  }
+};
