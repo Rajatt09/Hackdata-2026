@@ -25,7 +25,7 @@ module.exports = async function start() {
   spinner.text = "Initializing tools...";
 
   try {
-    const nudgePath = path.join(process.cwd(), "../nudge");
+    const nudgePath = path.join(__dirname, "../../nudge");
 
     const child = spawn("npm", ["run", "dev"], {
       cwd: nudgePath,

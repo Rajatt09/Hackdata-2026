@@ -1,7 +1,7 @@
 const fs = require("fs")
 const path = require("path")
 
-const envPath = path.resolve(process.cwd(), ".env")
+const envPath = path.join(__dirname, "../../nudge", ".env")
 
 function updateEnv(key, value) {
 

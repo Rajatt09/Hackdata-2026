@@ -31,5 +31,5 @@ npm link
 
 echo "==================================="
 echo "Nudge CLI installed successfully!"
-echo "Run: nudge start"
+echo "Run: nudge init"
 echo "==================================="

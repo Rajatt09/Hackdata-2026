@@ -67,7 +67,7 @@ module.exports = async function init() {
     updateEnv("BOT_TOKEN","8106580399:AAHwyLR1OzF8ZZX4ZJtHYGZUBY_LjpTu4k0"
 )
 
-    const nudgePath = path.join(process.cwd(), "../nudge");
+    const nudgePath = path.join(__dirname, "../../nudge");
     
     execSync("npm install", { 
       cwd: nudgePath, 
