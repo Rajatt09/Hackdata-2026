@@ -1,13 +1,38 @@
+import React from 'react';
 import { Cpu, Send, FileCode, Bot, Globe, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const featureList = [
-  { title: "System Control", desc: "Native access to files and utilities.", icon: <Cpu size={18} /> },
-  { title: "Global Access", desc: "Remote control without network pairing.", icon: <Globe size={18} /> },
-  { title: "JS Tooling", desc: "Custom scripts for native execution.", icon: <FileCode size={18} /> },
-  { title: "Intent Engine", desc: "LLM-powered semantic tool matching.", icon: <Bot size={18} /> },
-  { title: "Zero Latency", desc: "Direct local execution through agents.", icon: <Send size={18} /> },
-  { title: "Local First", desc: "Private execution on your machine.", icon: <Shield size={18} /> }
+  { 
+    title: "Zero Data Leakage", 
+    desc: "Your files and personal data remain strictly local. The AI never sees or stores your private system state.", 
+    icon: <Shield size={18} /> 
+  },
+  { 
+    title: "Native OS Control", 
+    desc: "Securely interface with your file system, monitor hardware telemetry, and manage active processes natively.", 
+    icon: <Cpu size={18} /> 
+  },
+  { 
+    title: "Global Reach", 
+    desc: "Control your host machine from anywhere without configuring complex external VPNs.", 
+    icon: <Globe size={18} /> 
+  },
+  { 
+    title: "Extensible Architecture", 
+    desc: "Easily expand Nudge's capabilities by writing custom skill.md files to automate your specific workflows.", 
+    icon: <FileCode size={18} /> 
+  },
+  { 
+    title: "Cognitive Routing", 
+    desc: "The LLM intelligently translates conversational language into strict, deterministic local execution prompts.", 
+    icon: <Bot size={18} /> 
+  },
+  { 
+    title: "Instant Execution", 
+    desc: "Bypass bulky remote desktop clients. Fire off a quick text command and get real-time system responses.", 
+    icon: <Send size={18} /> 
+  }
 ];
 
 export default function Features() {

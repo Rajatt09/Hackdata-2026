@@ -5,18 +5,18 @@ export default function AboutSection({ desktopImg, mobileImg }) {
   const items = [
     { 
       icon: <Globe size={18} className="text-blue-500" />, 
-      title: "Global Reach", 
-      text: "Control your machine from any remote connection without VPNs." 
+      title: "Globally Accessible CLI", 
+      text: "Interact with your host machine from anywhere over any network. Manage files and monitor processes instantly without complex SSH tunnels." 
     },
     { 
       icon: <Code2 size={18} className="text-purple-500" />, 
-      title: "JS Tooling", 
-      text: "Custom logic powered by extensible JavaScript files." 
+      title: "Local-First Architecture", 
+      text: "The LLM acts strictly as a router. Execution happens locally via native Tools, ensuring your private data never goes to the cloud." 
     },
     { 
       icon: <Zap size={18} className="text-amber-500" />, 
-      title: "Ultra Lightweight", 
-      text: "Minimal CPU footprint for instant system execution." 
+      title: "Minimal Overhead", 
+      text: "Runs silently as a background daemon, replacing resource-heavy remote desktop clients with a hyper-efficient, text-first interface." 
     }
   ];
 
@@ -26,11 +26,10 @@ export default function AboutSection({ desktopImg, mobileImg }) {
         
         <div className="space-y-6 text-left">
           <h2 className="text-4xl font-bold tracking-tight text-black">
-            Total control. <span className="text-gray-400">Zero network limits.</span>
+            Natural language. <span className="text-gray-400">Native execution.</span>
           </h2>
           <p className="text-lg text-gray-600 leading-relaxed font-medium">
-            Nudge turns complex system operations into simple chat commands. 
-            Fetch files, stream data, and open apps from anywhere in the world.
+            Nudge replaces rigid CLI syntax and bulky remote clients with a frictionless automation layer. By translating your intent into secure local actions, it bridges the gap between global accessibility and absolute system privacy.
           </p>
           <ul className="space-y-6 pt-4">
             {items.map((item, i) => (
