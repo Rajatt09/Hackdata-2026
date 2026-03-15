@@ -1,20 +1,35 @@
 #!/bin/bash
 
+# Exit on error
+set -e
+
 echo "Installing Nudge CLI..."
 
-REPO="https://github.com/Rajatt09/Hackdata-2026"
+INSTALL_DIR="$HOME/.nudge-cli"
+REPO="https://github.com/Rajatt09/Hackdata-2026.git"
 
-git clone $REPO nudge-temp
+# Check if directory already exists
+if [ -d "$INSTALL_DIR" ]; then
+  echo "Updating existing installation in $INSTALL_DIR..."
+  cd "$INSTALL_DIR"
+  git pull origin main
+else
+  echo "Cloning repository to $INSTALL_DIR..."
+  git clone "$REPO" "$INSTALL_DIR"
+  cd "$INSTALL_DIR"
+fi
 
-cd nudge-temp/cli
-
+echo "Installing dependencies..."
+# Install main nudge package dependencies first
+cd "$INSTALL_DIR/nudge"
 npm install
 
+# Install cli dependencies and link
+cd "$INSTALL_DIR/cli"
+npm install
 npm link
 
-cd ../..
-
-rm -rf nudge-temp
-
-echo "Nudge CLI installed!"
+echo "==================================="
+echo "Nudge CLI installed successfully!"
 echo "Run: nudge start"
+echo "==================================="
